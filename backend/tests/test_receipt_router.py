@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta, timezone
 
 import pytest
 from sqlmodel import select
@@ -16,7 +16,9 @@ from app.db.models import (
 from app.db.models import UserFeature as _UserFeature
 from app.routers import receipt as receipt_router
 from app.routers.receipt import _parse_receipt_at
+from app.routers.receipt import _today as real_today
 from app.schemas.receipt import ReceiptPriceBatch
+from app.services.receipt_date import PLAUSIBLE_PAST_DAYS
 
 LIST_ID = "list-receipt-test"
 
@@ -827,6 +829,9 @@ def test_receipt_prices_does_not_rewrite_an_existing_purchase_timestamp(client, 
     item = session.get_one(ListItem, "item-almendras")
     assert item.purchased_at == original
     assert item.updated_at == original_updated_at
+    # The line was the whole cart, so the receipt closes that trip in place.
+    assert item.purchase_id == "trip-open-ts"
+    assert session.get_one(Purchase, "trip-open-ts").closed_at is not None
 
 
 def test_receipt_prices_stamps_updated_at(client, session, user):
@@ -1299,6 +1304,8 @@ def test_receipt_apply_stamps_the_trip_boundary_in_the_clients_zone(client, sess
     session.expire_all()
     item = session.get_one(ListItem, "item-pan-trip3")
     trip = session.get_one(Purchase, item.purchase_id)
+    # 17:42 UTC is 05:42 on 11 Apr at UTC-12, whose midnight is 12:00 UTC.
+    assert trip.opened_at == datetime(2026, 4, 11, 12, 0, tzinfo=UTC)
     assert trip.tears_off_at == tears_off_at_for(trip.opened_at, ZoneInfo("Etc/GMT+12"))
 
 
@@ -1520,6 +1527,7 @@ def test_targeted_scan_returns_409_for_the_open_cart(client, session):
         f"/lists/{LIST_ID}/receipt", json=_targeted_scan_body(purchase_id="trip-cart")
     )
     assert response.status_code == 409
+    assert response.json()["detail"] == "purchase_not_closed"
 
 
 def test_targeted_scan_does_not_link_the_scan_before_apply(client, session, settled_trip):
@@ -1726,6 +1734,7 @@ def test_targeted_apply_returns_409_for_the_open_cart(client, session):
         f"/lists/{LIST_ID}/receipt-prices", json=_targeted_batch(purchase_id="trip-cart")
     )
     assert response.status_code == 409
+    assert response.json()["detail"] == "purchase_not_closed"
 
 
 def test_receipt_price_batch_defaults_purchase_id_none():
@@ -2406,3 +2415,494 @@ def test_a_name_typed_later_replaces_a_receipt_read_format(client, session):
     item = session.get_one(ListItem, "item-almendras")
     assert (item.name, item.pack_source) == ("Almendras", "name")
     assert item.pack == {"count": 1, "content": 200, "unit": "g"}
+
+
+# --- Gaps found by mutation testing (JAV-249) ---
+
+
+def _leche_line():
+    return {
+        "name": "LECHE ENTERA",
+        "price_type": "UNIT",
+        "unit_price": 0.89,
+        "quantity": None,
+        "line_total": 0.89,
+    }
+
+
+def _open_cart(session, trip_id="trip-open"):
+    trip = Purchase(
+        id=trip_id,
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 11, 9, 0, 0, tzinfo=UTC),
+        tears_off_at=datetime(2099, 1, 1, 0, 0, 0, tzinfo=UTC),
+    )
+    session.add(trip)
+    return trip
+
+
+def test_today_is_read_in_the_given_zone():
+    # UTC+14 and UTC-12 are 26 hours apart, so their dates always differ.
+    assert real_today(timezone(timedelta(hours=14))) != real_today(timezone(timedelta(hours=-12)))
+
+
+def test_scan_records_what_it_read_and_matched(client, session):
+    result = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body()).json()
+
+    assert result["receipt_total"] == pytest.approx(1.15)
+    scan = session.get_one(ReceiptScan, result["scan_id"])
+    assert scan.store == "Mercadona"
+    assert scan.receipt_total == pytest.approx(1.15)
+    assert [m["item_id"] for m in scan.match_result] == ["item-almendras"]
+
+
+def test_scan_keeps_the_store_the_receipt_names(client, session):
+    """Store inference fills only a missing store; it never replaces the paper's."""
+    item = session.get_one(ListItem, "item-almendras")
+    item.price_store = "Mercadona"
+    session.add(item)
+    session.commit()
+
+    result = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body(store="Lidl")).json()
+
+    assert len(result["matched"]) == 1
+    assert result["store"] == "Lidl"
+
+
+def test_scan_never_matches_another_lists_item(client, session, user):
+    session.add_all(
+        [
+            List(id="list-elsewhere", name="Elsewhere", owner_id=user.id),
+            ListItem(
+                id="item-elsewhere", list_id="list-elsewhere", name="Leche entera", added_by=user.id
+            ),
+        ]
+    )
+    session.commit()
+
+    body = {**_unit_body(), "lines": [_leche_line()]}
+    result = client.post(f"/lists/{LIST_ID}/receipt", json=body).json()
+
+    assert result["matched"] == []
+
+
+def test_scan_prefers_a_pending_item_to_a_newer_one_in_the_cart(client, session, user):
+    _open_cart(session)
+    session.add_all(
+        [
+            ListItem(
+                id="item-leche-cart",
+                list_id=LIST_ID,
+                name="Leche entera",
+                added_by=user.id,
+                purchased_at=datetime(2026, 4, 11, 10, 0, 0, tzinfo=UTC),
+                purchase_id="trip-open",
+                updated_at=datetime(2026, 4, 11, 10, 0, 0, tzinfo=UTC),
+            ),
+            ListItem(
+                id="item-leche-pending",
+                list_id=LIST_ID,
+                name="Leche entera",
+                added_by=user.id,
+                updated_at=datetime(2026, 4, 9, 9, 0, 0, tzinfo=UTC),
+            ),
+        ]
+    )
+    session.commit()
+
+    body = {**_unit_body(), "lines": [_leche_line()]}
+    result = client.post(f"/lists/{LIST_ID}/receipt", json=body).json()
+
+    assert [m["item_id"] for m in result["matched"]] == ["item-leche-pending"]
+
+
+def test_targeted_scan_matches_the_most_recently_updated_line(client, session, user, settled_trip):
+    # Inserted oldest first, so only the ordering puts the recent line first.
+    for item_id, updated in (("old", 9), ("recent", 11)):
+        session.add(
+            ListItem(
+                id=f"item-leche-{item_id}",
+                list_id=LIST_ID,
+                name="Leche entera",
+                added_by=user.id,
+                purchased_at=SETTLED_WRITE,
+                purchase_id=SETTLED_ID,
+                updated_at=datetime(2026, 4, updated, 9, 0, 0, tzinfo=UTC),
+            )
+        )
+    session.commit()
+
+    body = _targeted_scan_body(lines=[_leche_line()])
+    result = client.post(f"/lists/{LIST_ID}/receipt", json=body).json()
+
+    assert [m["item_id"] for m in result["matched"]] == ["item-leche-recent"]
+
+
+def test_scan_judges_the_date_in_the_clients_zone(client):
+    """23:30 UTC the day before the window opens is already its first day in
+    Madrid, so the date stands. Read in UTC it would be dropped."""
+    earliest = PINNED_TODAY - timedelta(days=PLAUSIBLE_PAST_DAYS)
+    instant = datetime.combine(earliest - timedelta(days=1), time(23, 30), tzinfo=UTC)
+    receipt_date = instant.isoformat().replace("+00:00", "Z")
+    body = {**_unit_body(), "receipt_date": receipt_date}
+    result = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json=body,
+        headers={"X-Client-Timezone": "Europe/Madrid"},
+    ).json()
+
+    assert result["receipt_date"] == receipt_date
+
+
+def test_past_dated_scan_returns_the_purchases_total(client, session, user):
+    trip = _past_day_trip(session, user)
+    trip.total = 18.09
+    session.add(trip)
+    session.commit()
+
+    body = client.post(f"/lists/{LIST_ID}/receipt", json=_past_scan_body()).json()
+
+    assert body["target_purchase"]["total"] == pytest.approx(18.09)
+
+
+def test_past_dated_scan_ignores_another_lists_purchase(client, session, user):
+    session.add(List(id="list-elsewhere", name="Elsewhere", owner_id=user.id))
+    session.add(
+        Purchase(
+            id="trip-elsewhere",
+            list_id="list-elsewhere",
+            opened_at=datetime(2026, 4, 1, 17, 0, 0, tzinfo=UTC),
+            tears_off_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC),
+            closed_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC),
+            store="Ahorramas",
+        )
+    )
+    session.commit()
+
+    body = client.post(f"/lists/{LIST_ID}/receipt", json=_past_scan_body()).json()
+
+    assert body["target_purchase"] is None
+
+
+def test_past_dated_scan_counts_a_purchase_opened_at_midnight(client, session, user):
+    trip = _past_day_trip(session, user)
+    trip.opened_at = datetime(2026, 4, 1, 0, 0, 0, tzinfo=UTC)
+    session.add(trip)
+    session.commit()
+
+    body = client.post(f"/lists/{LIST_ID}/receipt", json=_past_scan_body()).json()
+
+    assert body["target_purchase"]["id"] == PAST_DAY_ID
+
+
+def test_past_dated_scan_ignores_the_next_days_purchase(client, session, user):
+    """A purchase opened at the next midnight belongs to the next day. Counting
+    it would make the receipt's day look ambiguous."""
+    _past_day_trip(session, user)
+    _past_day_trip(session, user, trip_id="trip-next-day")
+    nxt = session.get_one(Purchase, "trip-next-day")
+    nxt.opened_at = datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC)
+    session.add(nxt)
+    session.commit()
+
+    body = client.post(f"/lists/{LIST_ID}/receipt", json=_past_scan_body()).json()
+
+    assert body["target_purchase"]["id"] == PAST_DAY_ID
+
+
+def test_past_dated_scan_starts_the_day_at_the_clients_midnight(client, session, user):
+    # 22:30 UTC on 31 Mar is 00:30 on 1 Apr in Madrid.
+    trip = _past_day_trip(session, user)
+    trip.opened_at = datetime(2026, 3, 31, 22, 30, 0, tzinfo=UTC)
+    session.add(trip)
+    session.commit()
+
+    body = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json=_past_scan_body(receipt_date="2026-04-01T08:00:00Z"),
+        headers={"X-Client-Timezone": "Europe/Madrid"},
+    ).json()
+
+    assert body["target_purchase"]["id"] == PAST_DAY_ID
+
+
+def test_a_scan_dated_today_aims_at_nothing(client, session, user, monkeypatch):
+    """Today's shop is still the ordinary flow, even if a purchase from today
+    is already closed."""
+    today = PINNED_TODAY
+    noon = datetime.combine(today, time(12, 0), tzinfo=UTC)
+
+    class _FrozenDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return noon.astimezone(tz)
+
+    # The router reads the clock itself, so freeze it on the pinned day.
+    monkeypatch.setattr(receipt_router, "datetime", _FrozenDatetime)
+    opened = datetime.combine(today, time.min, tzinfo=UTC)
+    session.add(
+        Purchase(
+            id="trip-today",
+            list_id=LIST_ID,
+            opened_at=opened,
+            tears_off_at=opened + timedelta(days=1),
+            closed_at=opened,
+            store="Ahorramas",
+        )
+    )
+    session.commit()
+
+    body = client.post(
+        f"/lists/{LIST_ID}/receipt", json=_past_scan_body(receipt_date=today.isoformat())
+    ).json()
+
+    assert body["target_purchase"] is None
+
+
+def test_targeted_apply_keeps_the_store_of_a_torn_off_trip(client, session, user):
+    """Writing a trip down fills a missing store only."""
+    _past_day_trip(session, user, store="Ahorramas", closed=False)
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_targeted_batch(
+            purchase_id=PAST_DAY_ID,
+            store="Mercadona",
+            patches=[_price_patch(f"{PAST_DAY_ID}-pan", 1.10)],
+        ),
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    assert session.get_one(Purchase, PAST_DAY_ID).store == "Ahorramas"
+
+
+def test_apply_accepts_a_receipt_dated_today(client):
+    response = _apply(
+        client,
+        receipt_date="2026-04-15T10:00:00Z",
+        patches=[_price_patch("item-almendras", 1.15)],
+    )
+    assert response.status_code == 200
+
+
+def test_apply_reads_the_future_in_the_clients_zone(client):
+    """10:00 UTC on 15 Apr is already 16 Apr at UTC+14."""
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "receipt_date": "2026-04-15T10:00:00Z",
+            "patches": [_price_patch("item-almendras", 1.15)],
+        },
+        headers={"X-Client-Timezone": "Etc/GMT-14"},
+    )
+    assert response.status_code == 422
+
+
+def test_undated_apply_closes_a_cart_stamped_in_the_clients_zone(client, session):
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={"store": "Mercadona", "patches": [_price_patch("item-almendras", 1.15)]},
+        headers={"X-Client-Timezone": "Etc/GMT+12"},
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    item = session.get_one(ListItem, "item-almendras")
+    trip = session.get_one(Purchase, item.purchase_id)
+    assert trip.closed_at is not None
+    # Local midnight at UTC-12 is 12:00 UTC. Check the offset first, so a
+    # naive value fails here instead of being read in the machine's zone.
+    assert trip.tears_off_at.utcoffset() == timedelta(0)
+    assert trip.tears_off_at.hour == 12
+
+
+def test_apply_counts_every_patch_for_an_unknown_item(client):
+    patches = [
+        _price_patch("no-such-item", 1.0),
+        _price_patch("no-such-item-2", 1.0),
+        _price_patch("item-almendras", 1.15),
+    ]
+    response = _apply(client, patches=patches)
+
+    assert response.status_code == 200
+    assert response.json() == {"items_updated": 1, "items_created": 0, "items_skipped": 2}
+
+
+def test_targeted_apply_counts_every_patch_off_the_purchase(client, settled_trip):
+    patches = [
+        _price_patch("item-lookalike", 1.10),
+        _price_patch("item-almendras", 1.15),
+        _price_patch("item-settled-unpriced", 1.10),
+    ]
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices", json=_targeted_batch(patches=patches)
+    )
+
+    assert response.json() == {"items_updated": 1, "items_created": 0, "items_skipped": 2}
+
+
+def test_apply_counts_every_patch_for_a_settled_item(client, settled_trip):
+    patches = [
+        _price_patch("item-settled-priced", 2.75),
+        _price_patch("item-settled-unpriced", 1.10),
+        _price_patch("item-almendras", 1.15),
+    ]
+    response = _apply(client, patches=patches)
+
+    assert response.json() == {"items_updated": 1, "items_created": 0, "items_skipped": 2}
+
+
+def test_apply_skips_a_settled_item_while_another_cart_is_open(client, session, settled_trip):
+    """The pool joins each item to its own trip, not to whichever trip is open."""
+    _open_cart(session)
+    session.commit()
+
+    response = _apply(client, patches=[_price_patch("item-settled-priced", 2.75)])
+
+    assert response.json()["items_skipped"] == 1
+
+
+def test_apply_stores_a_per_kilo_price(client, session):
+    patch = {**_price_patch("item-almendras", 3.20), "price_per": "KILOGRAM"}
+    assert _apply(client, patches=[patch]).status_code == 200
+
+    session.expire_all()
+    assert session.get_one(ListItem, "item-almendras").price_per == "KILOGRAM"
+
+
+def test_targeted_apply_drops_a_kept_old_price_equal_to_the_new_one(client, session, settled_trip):
+    _mark_reduced(session, "item-settled-priced", 2.75)
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_targeted_batch(patches=[_price_patch("item-settled-priced", 2.75)]),
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    assert session.get_one(ListItem, "item-settled-priced").price_before is None
+
+
+def test_a_created_item_keeps_its_per_kilo_and_reduced_price(client, session):
+    body = _new_item_body(price_per="KILOGRAM", reduced=True, price_before=2.10)
+    assert client.post(f"/lists/{LIST_ID}/receipt-prices", json=body).status_code == 200
+
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert (created.price_per, created.price_reduced, created.price_before) == (
+        "KILOGRAM",
+        True,
+        2.10,
+    )
+
+
+def test_a_created_item_needs_a_reduced_price_for_an_old_price(client):
+    body = _new_item_body(price_before=2.10)
+    assert client.post(f"/lists/{LIST_ID}/receipt-prices", json=body).status_code == 422
+
+
+def test_a_created_item_refuses_an_old_price_no_higher_than_the_price_paid(client):
+    body = _new_item_body(reduced=True, price_before=1.8)
+    assert client.post(f"/lists/{LIST_ID}/receipt-prices", json=body).status_code == 422
+
+
+def test_apply_counts_every_created_item(client):
+    body = _new_item_body()
+    body["new_items"].append({**body["new_items"][0], "name": "Chocolate blanco"})
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    assert response.json()["items_created"] == 2
+
+
+def test_a_patch_article_keeps_the_brand(client, session):
+    item = session.get_one(ListItem, "item-almendras")
+    item.brand = "Hacendado"
+    session.add(item)
+    session.commit()
+
+    patch = {**_price_patch("item-almendras", 1.15), "article": "03505"}
+    assert _apply(client, patches=[patch]).status_code == 200
+
+    [row] = _articles(session)
+    assert row.item_brand == "Hacendado"
+
+
+def test_a_patch_article_takes_the_lines_own_store(client, session):
+    patch = {**_price_patch("item-almendras", 1.15), "article": "03505"}
+    assert _apply(client, store=None, patches=[patch]).status_code == 200
+
+    [row] = _articles(session)
+    assert row.chain == "mercadona"
+
+
+def test_a_new_item_article_falls_back_to_the_receipts_store(client, session):
+    body = {**_new_item_body(store=None, article="03505"), "store": "Mercadona"}
+    assert client.post(f"/lists/{LIST_ID}/receipt-prices", json=body).status_code == 200
+
+    [row] = _articles(session)
+    assert row.chain == "mercadona"
+
+
+def test_a_targeted_new_item_article_takes_the_purchase_store(client, session, settled_trip):
+    new = {**_new_item_body(store=None, article="03505")["new_items"][0]}
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices", json=_targeted_batch(store=None, new_items=[new])
+    )
+    assert response.status_code == 200
+
+    [row] = _articles(session)
+    assert row.chain == "mercadona"
+
+
+def test_an_article_with_no_store_anywhere_saves_the_lines(client, session):
+    patch = {**_price_patch("item-almendras", 1.15, store=None), "article": "03505"}
+    body = {**_new_item_body(store=None, article="03506"), "patches": [patch]}
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    assert response.json()["items_updated"] == 1
+    assert response.json()["items_created"] == 1
+    assert _articles(session) == []
+
+
+def test_mappings_are_kept_per_store_and_per_receipt_name(client, session):
+    mappings = [
+        {"store": "Mercadona", "receipt_name": "LECHE", "item_name": "Leche entera"},
+        {"store": "Lidl", "receipt_name": "LECHE", "item_name": "Leche Milbona"},
+        {"store": "Mercadona", "receipt_name": "PAN", "item_name": "Pan de molde"},
+    ]
+    for m in mappings:
+        client.post(f"/lists/{LIST_ID}/receipt-prices", json={"mappings": [m]})
+
+    rows = session.exec(select(ReceiptNameMapping)).all()
+    assert sorted((r.store, r.receipt_name, r.item_name) for r in rows) == [
+        ("lidl", "leche", "Leche Milbona"),
+        ("mercadona", "leche", "Leche entera"),
+        ("mercadona", "pan", "Pan de molde"),
+    ]
+
+
+def test_a_mapping_keeps_its_brand_on_insert_and_on_update(client, session):
+    mapping = {
+        "store": "Mercadona",
+        "receipt_name": "LECHE",
+        "item_name": "Leche entera",
+        "item_brand": "Hacendado",
+    }
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json={"mappings": [mapping]})
+    assert session.exec(select(ReceiptNameMapping)).one().item_brand == "Hacendado"
+
+    mapping["item_brand"] = "Pascual"
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json={"mappings": [mapping]})
+    session.expire_all()
+    assert session.exec(select(ReceiptNameMapping)).one().item_brand == "Pascual"
+
+
+def test_apply_bumps_the_lists_updated_at(client, session):
+    lst = session.get_one(List, LIST_ID)
+    lst.updated_at = datetime(2026, 1, 1, tzinfo=UTC)
+    session.add(lst)
+    session.commit()
+
+    assert _apply(client, patches=[_price_patch("item-almendras", 1.15)]).status_code == 200
+
+    session.expire_all()
+    assert session.get_one(List, LIST_ID).updated_at > datetime(2026, 1, 1, tzinfo=UTC)
