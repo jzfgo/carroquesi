@@ -906,7 +906,7 @@ def test_a_format_and_code_correction_does_not_stamp_the_write(
     assert _updated_at(session, item["id"]) == aged
 
 
-def test_a_cleared_format_is_not_read_back_from_the_name(client: TestClient, session: Session):
+def test_a_cleared_format_is_not_read_back_from_the_name(client: TestClient):
     """Someone who renames to «Agua 6x1,5L» and clears the format in the same
     save wants that name. A later edit of another field leaves it alone too."""
     lst = _create_list(client)
