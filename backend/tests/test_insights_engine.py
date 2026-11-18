@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from app.db.models import List, ListItem, Purchase, User
 from app.services.insights.engine import SpendReport, compute_report
-from app.services.insights.schemas import Cadence, Totals
+from app.services.insights.schemas import Cadence, CheaperElsewhere, Totals
 
 MADRID = ZoneInfo("Europe/Madrid")
 TYPES = [
@@ -73,7 +73,9 @@ def test_an_empty_month_still_yields_a_report(session: Session, user: User):
     assert totals.total == 0
     assert totals.vs_previous is None
     assert cadence.mean_days_between is None
-    assert by_type["cheaper_elsewhere"].suggestions == []  # ty: ignore[unresolved-attribute]
+    savings = by_type["cheaper_elsewhere"]
+    assert isinstance(savings, CheaperElsewhere)
+    assert savings.suggestions == []
 
 
 def test_computing_a_report_writes_nothing(session: Session, user: User):
