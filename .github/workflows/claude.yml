@@ -91,10 +91,19 @@ jobs:
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
+      # Actions are pinned to a commit SHA, not a tag: a tag can be moved to
+      # other code, and this job holds the repo's Claude token. To bump one,
+      # resolve the new tag to its commit and update the trailing comment.
+      #
+      # `persist-credentials: false`: the action replaces the checkout's token
+      # with its own before Claude starts, but in agent mode it carries on if
+      # that fails, so the token is never written in the first place. The guard
+      # below fetches anonymously, which a public repo allows.
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       # A PR that edits this workflow cannot be reviewed by it: claude-code-action
       # refuses a workflow file that differs from the default branch's copy, and the
@@ -132,7 +141,7 @@ jobs:
       # that touches plugins/code-review and is at least 7 days old, like the
       # quarantine on every other dependency.
       - name: Check out the review plugin at a pinned commit
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: anthropics/claude-plugins-official
           ref: 9780cf407f5593727b668bae95a0c4ae2e0de1ae # code-review 1.0.1, 2026-10-26
@@ -155,7 +164,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@v1.0.271
+        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
