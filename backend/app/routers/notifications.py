@@ -36,8 +36,9 @@ def register_token(body: PushTokenBody, session: CurrentSession, current_user: C
     except IntegrityError:
         # A concurrent registration of the same token won the unique index.
         # Registration must stay idempotent, so adopt the winner's row rather
-        # than 500. The SQLite test harness serialises on StaticPool and can
-        # never reach this path; the pattern mirrors barcode.py and waitlist.py.
+        # than 500. The SQLite test harness serialises on StaticPool, so its
+        # test fakes the failed commit; the pattern mirrors barcode.py and
+        # waitlist.py.
         session.rollback()
         winner = session.exec(select(PushToken).where(PushToken.token == body.token)).first()
         if winner is None:

@@ -243,3 +243,40 @@ def test_backfill_scopes_keys_per_list(session: Session, user):
 
     rows = session.exec(select(ListStore).order_by(ListStore.list_id)).all()
     assert [(r.list_id, r.display_name) for r in rows] == [("l1", "Lidl"), ("l2", "lidl")]
+
+
+def _store(session: Session, list_id: str, id_: str, key: str, name: str) -> None:
+    session.add(ListStore(id=id_, list_id=list_id, store_key=key, display_name=name))
+    session.commit()
+
+
+def test_get_stores_sorts_by_display_name(client: TestClient, session: Session):
+    # Insertion order, id order and key order all differ from name order.
+    lst = _create_list(client)
+    _store(session, lst["id"], "id-1", "aaa", "Zeta")
+    _store(session, lst["id"], "id-3", "mmm", "Alfa")
+    _store(session, lst["id"], "id-2", "zzz", "Mitad")
+
+    names = [s["display_name"] for s in client.get(f"/lists/{lst['id']}/stores").json()]
+    assert names == ["Alfa", "Mitad", "Zeta"]
+
+
+def test_rename_store_touches_only_that_lists_row_for_that_key(
+    client: TestClient, session: Session
+):
+    lst = _create_list(client)
+    other = _create_list(client)
+    # Rows that a looser lookup would find first.
+    _store(session, other["id"], "id-1", "lidl", "Lidl")
+    _store(session, lst["id"], "id-2", "dia", "Día")
+    _store(session, lst["id"], "id-3", "lidl", "Lidl")
+
+    response = client.patch(f"/lists/{lst['id']}/stores/lidl", json={"display_name": "LIDL"})
+    assert response.json() == {"store_key": "lidl", "display_name": "LIDL"}
+
+    rows = {(r.list_id, r.store_key): r.display_name for r in session.exec(select(ListStore))}
+    assert rows == {
+        (other["id"], "lidl"): "Lidl",
+        (lst["id"], "dia"): "Día",
+        (lst["id"], "lidl"): "LIDL",
+    }

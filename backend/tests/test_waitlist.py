@@ -303,3 +303,52 @@ def test_get_current_user_gate_blocked_for_unapproved_waitlist_user(session: Ses
 
     assert resp.status_code == 403
     assert resp.json()["detail"] == "waitlist"
+
+
+def _commit_fails_once(session: Session, monkeypatch, before_raise=None):
+    from sqlalchemy.exc import IntegrityError
+
+    real_commit = session.commit
+    state = {"failed": False}
+
+    def commit():
+        if state["failed"]:
+            return real_commit()
+        state["failed"] = True
+        session.rollback()
+        if before_raise:
+            before_raise()
+        raise IntegrityError("INSERT", {}, Exception("unique"))
+
+    monkeypatch.setattr(session, "commit", commit)
+    return real_commit
+
+
+def test_waitlist_signup_returns_the_row_a_concurrent_signup_wrote(
+    client: TestClient, session: Session, monkeypatch
+):
+    # Another request inserts the same email between our lookup and our commit.
+    session.add(WaitlistSignup(email="other@example.com"))
+    session.commit()
+
+    def concurrent_insert():
+        session.add(WaitlistSignup(email="race@example.com", invite_token="theirs"))
+        real_commit()
+
+    real_commit = _commit_fails_once(session, monkeypatch, concurrent_insert)
+
+    response = client.post("/waitlist", json={"email": "race@example.com"})
+
+    assert response.status_code == 200
+    assert response.json()["email"] == "race@example.com"
+    assert response.json()["invite_token"] == "theirs"
+
+
+def test_waitlist_signup_503_when_the_write_fails_with_no_row_to_return(
+    client: TestClient, session: Session, monkeypatch
+):
+    _commit_fails_once(session, monkeypatch)
+
+    response = client.post("/waitlist", json={"email": "lost@example.com"})
+
+    assert response.status_code == 503

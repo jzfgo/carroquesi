@@ -105,3 +105,42 @@ def test_patch_features_unknown_user_returns_404(
         json={"feature": "ai_receipt_scanning", "enabled": True},
     )
     assert response.status_code == 404
+
+
+def test_patch_features_can_create_a_disabled_override(
+    admin_client: TestClient, session: Session, user: User
+):
+    # push_notifications is on by default, so only a stored False turns it off.
+    response = admin_client.patch(
+        f"/admin/users/{user.id}/features",
+        json={"feature": "push_notifications", "enabled": False},
+    )
+    assert "push_notifications" not in response.json()["features"]
+    row = session.exec(select(UserFeature).where(UserFeature.user_id == user.id)).one()
+    assert row.enabled is False
+
+
+def test_patch_features_touches_only_that_users_row_for_that_flag(
+    admin_client: TestClient, session: Session, user: User, other_user: User
+):
+    session.add(
+        UserFeature(
+            user_id=other_user.id, feature="ai_receipt_scanning", enabled=False, granted_by="admin"
+        )
+    )
+    session.add(
+        UserFeature(user_id=user.id, feature="monthly_report", enabled=False, granted_by="admin")
+    )
+    session.commit()
+
+    admin_client.patch(
+        f"/admin/users/{user.id}/features",
+        json={"feature": "ai_receipt_scanning", "enabled": True},
+    )
+
+    rows = {(r.user_id, r.feature): r.enabled for r in session.exec(select(UserFeature)).all()}
+    assert rows == {
+        (other_user.id, "ai_receipt_scanning"): False,
+        (user.id, "monthly_report"): False,
+        (user.id, "ai_receipt_scanning"): True,
+    }

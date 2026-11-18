@@ -23,6 +23,7 @@ def test_download_serves_the_static_file_when_present(client: TestClient, tmp_pa
 
     assert response.status_code == 200
     assert response.content == fake_bytes
+    assert response.headers["content-type"] == "application/octet-stream"
     # Imported name (and Siri trigger) comes from this filename — spaced/accented via
     # RFC 6266 filename*, with an ASCII filename fallback.
     assert response.headers["content-disposition"] == (
@@ -110,3 +111,8 @@ def test_regenerate_rotates_an_existing_key(client: TestClient, session: Session
         select(ApiKey).where(ApiKey.key_hash == hash_key(first["key"]))
     ).first()
     assert stale_key_row is None
+
+
+def test_regenerate_stamps_the_time_in_utc(client: TestClient):
+    body = client.post("/account/api-key/regenerate").json()
+    assert body["regenerated_at"].endswith("+00:00")
