@@ -145,6 +145,14 @@ def test_get_label_refusal_is_404(client: TestClient):
     assert res.json()["detail"] == "label_not_decoded"
 
 
+def test_get_label_passes_the_store_hint_on(client: TestClient):
+    # Mercadona reads this label, but a hint of another chain makes the refusal final.
+    label = "230035050320600155004972"
+    assert client.get(f"/chains/labels/{label}", params={"store": "Ahorramas"}).status_code == 404
+    res = client.get("/chains/labels", params={"code": label, "store": "Ahorramas"})
+    assert res.status_code == 404
+
+
 def test_get_label_rejects_non_digits(client: TestClient):
     assert client.get("/chains/labels/23abc").status_code == 422
 

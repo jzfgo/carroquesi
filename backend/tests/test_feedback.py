@@ -53,3 +53,8 @@ def test_create_feedback_rejects_blank_message(
 
     assert response.status_code == 422
     assert session.exec(select(FeedbackSubmission)).all() == []
+
+
+def test_create_feedback_keeps_the_source(client: TestClient, session: Session):
+    client.post("/feedback", json={"message": "Hola", "source": "shake"})
+    assert session.exec(select(FeedbackSubmission)).one().source == "shake"

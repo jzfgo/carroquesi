@@ -102,3 +102,25 @@ def test_polling_updated_at_changes_after_item_add(client: TestClient):
     client.post(f"/lists/{lst['id']}/items", json={"name": "New Item"})
     after = client.get(f"/lists/{lst['id']}/updated-at").json()["updated_at"]
     assert after > before
+
+
+def test_suggestions_give_an_empty_store_list_for_a_row_without_one(
+    client: TestClient, session: Session, user
+):
+    from app.db.models import ListItem
+
+    lst = client.post("/lists", json={"name": "List"}).json()
+    session.add(ListItem(list_id=lst["id"], name="Miel", added_by=user.id, stores=None))  # ty: ignore[invalid-argument-type]
+    session.commit()
+
+    [miel] = client.get("/suggestions?q=mi").json()
+    assert miel["stores"] == []
+
+
+def test_suggestions_answer_at_most_ten(client: TestClient):
+    lst = client.post("/lists", json={"name": "List"}).json()
+    for n in range(11):
+        client.post(f"/lists/{lst['id']}/items", json={"name": f"Pan {n:02}"})
+
+    names = [s["name"] for s in client.get("/suggestions?q=pan").json()]
+    assert names == [f"Pan {n:02}" for n in range(10)]

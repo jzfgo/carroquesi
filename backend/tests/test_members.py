@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.db.models import ListMember
+from app.db.models import List, ListMember, UserListPref
 
 
 def _create_list(client, name="Test List"):
@@ -203,7 +203,7 @@ def test_old_owner_can_leave_after_transfer(client: TestClient, other_user, user
     assert {m.user_id for m in memberships} == {other_user.id}
 
 
-def test_transfer_notifies_after_commit(client: TestClient, other_user, session: Session):
+def test_transfer_notifies_after_commit(client: TestClient, other_user, user, session: Session):
     from unittest.mock import patch
 
     lst = _create_list(client)
@@ -214,7 +214,11 @@ def test_transfer_notifies_after_commit(client: TestClient, other_user, session:
 
     assert response.status_code == 204
     notify.assert_called_once()
-    assert notify.call_args.args[3] == other_user.id
+    called_session, called_list, actor, new_owner_id = notify.call_args.args
+    assert called_session is session
+    assert called_list.id == lst["id"]
+    assert actor.id == user.id
+    assert new_owner_id == other_user.id
 
 
 def test_transfer_succeeds_when_push_raises(client: TestClient, other_user, session: Session):
@@ -223,7 +227,95 @@ def test_transfer_succeeds_when_push_raises(client: TestClient, other_user, sess
     lst = _create_list(client)
     _add_member(session, lst["id"], other_user.id)
 
-    with patch("app.routers.members.notify_ownership_change", side_effect=RuntimeError("boom")):
+    with (
+        patch("app.routers.members.notify_ownership_change", side_effect=RuntimeError("boom")),
+        patch("app.routers.members.logger") as logger,
+    ):
         response = client.put(f"/lists/{lst['id']}/owner", json={"user_id": other_user.id})
 
     assert response.status_code == 204
+    logger.exception.assert_called_once_with("push notification failed for list %s", lst["id"])
+
+
+def test_get_members_returns_the_photo(client: TestClient, user, session: Session):
+    user.photo_url = "https://example.com/alice.png"
+    session.add(user)
+    session.commit()
+    lst = _create_list(client)
+
+    [member] = client.get(f"/lists/{lst['id']}/members").json()
+    assert member["photo_url"] == "https://example.com/alice.png"
+
+
+def test_add_member_refuses_a_second_invite_to_the_same_email(client: TestClient):
+    lst = _create_list(client)
+    client.post(f"/lists/{lst['id']}/members", json={"email": "bob@example.com"})
+
+    response = client.post(f"/lists/{lst['id']}/members", json={"email": "bob@example.com"})
+    assert response.status_code == 409
+
+
+def test_add_member_ignores_invites_for_other_emails_and_lists(client: TestClient):
+    lst = _create_list(client)
+    other = _create_list(client, "Otra")
+    client.post(f"/lists/{other['id']}/members", json={"email": "bob@example.com"})
+    client.post(f"/lists/{lst['id']}/members", json={"email": "carol@example.com"})
+
+    response = client.post(f"/lists/{lst['id']}/members", json={"email": "bob@example.com"})
+    assert response.status_code == 202
+
+
+def test_add_member_ignores_membership_of_another_list(
+    client: TestClient, other_user, session: Session
+):
+    lst = _create_list(client)
+    other = _create_list(client, "Otra")
+    _add_member(session, other["id"], other_user.id)
+
+    response = client.post(f"/lists/{lst['id']}/members", json={"email": other_user.email})
+    assert response.status_code == 202
+
+
+def test_transfer_to_a_member_of_another_list_returns_404(
+    client: TestClient, other_user, user, session: Session
+):
+    lst = _create_list(client)
+    other = _create_list(client, "Otra")
+    _add_member(session, other["id"], other_user.id)
+
+    response = client.put(f"/lists/{lst['id']}/owner", json={"user_id": other_user.id})
+    assert response.status_code == 404
+    assert session.get_one(List, lst["id"]).owner_id == user.id
+
+
+def test_removing_a_non_member_leaves_their_other_memberships(
+    client: TestClient, other_user, session: Session
+):
+    lst = _create_list(client)
+    other = _create_list(client, "Otra")
+    _add_member(session, other["id"], other_user.id)
+
+    response = client.delete(f"/lists/{lst['id']}/members/{other_user.id}")
+    assert response.status_code == 404
+    assert session.exec(select(ListMember).where(ListMember.user_id == other_user.id)).one()
+
+
+def test_leaving_a_list_keeps_the_board_on_other_lists(
+    client: TestClient, other_user, session: Session
+):
+    lst = _create_list(client)
+    other = _create_list(client, "Otra")
+    _add_member(session, lst["id"], other_user.id)
+    _add_member(session, other["id"], other_user.id)
+    # The other list's pref comes first by insertion and by id, where a looser
+    # lookup finds it.
+    session.add(
+        UserListPref(id="pref-a", user_id=other_user.id, list_id=other["id"], board="kraft")
+    )
+    session.add(UserListPref(id="pref-b", user_id=other_user.id, list_id=lst["id"], board="kraft"))
+    session.commit()
+
+    assert client.delete(f"/lists/{lst['id']}/members/{other_user.id}").status_code == 204
+
+    prefs = session.exec(select(UserListPref).where(UserListPref.user_id == other_user.id)).all()
+    assert [p.list_id for p in prefs] == [other["id"]]
