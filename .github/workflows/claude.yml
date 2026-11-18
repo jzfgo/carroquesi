@@ -115,6 +115,25 @@ jobs:
             exit 1
           fi
 
+      # The review plugin, pinned to one commit like the action below. The
+      # documented route, `plugin_marketplaces: .../claude-code.git`, reads a
+      # catalog from that repo's default branch, and the catalog points the
+      # plugin at `main` of this repo. Each review would then run whatever
+      # landed there that day, with this job's token and tools. This repo has
+      # its own catalog with a relative path to the plugin, so a checkout at a
+      # SHA pins the catalog, the command, and the tools it grants itself.
+      #
+      # Dependabot does not bump this `ref:`. Move it by hand: pick a commit
+      # that touches plugins/code-review and is at least 7 days old, like the
+      # quarantine on every other dependency.
+      - name: Check out the review plugin at a pinned commit
+        uses: actions/checkout@v7
+        with:
+          repository: anthropics/claude-plugins-official
+          ref: 9780cf407f5593727b668bae95a0c4ae2e0de1ae # code-review 1.0.1, 2026-10-26
+          path: .review-plugins
+          persist-credentials: false
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1.0.262
@@ -125,33 +144,36 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # `pull_request` runs have no comment to follow, so give them an explicit
-          # brief. Every other trigger passes an empty string, which leaves the action
-          # following the instruction in the comment that mentioned @claude.
-          prompt: ${{ github.event_name == 'pull_request' && 'Review this pull request. Focus on correctness, security, and whether the change actually does what its description claims. Verify factual assertions in the diff against the real files rather than assuming they hold. Post your findings as a comment even when you find nothing, so that a clean pass is distinguishable from a silent one.' || '' }}
+          # `pull_request` runs have no comment to follow, so they run the official
+          # `code-review` plugin. It comments on each line of the diff it has an
+          # issue with, and posts "No issues found" when it has none, so a clean
+          # pass is distinguishable from a silent one. Every other trigger passes
+          # an empty prompt, which leaves the action following the instruction in
+          # the comment that mentioned @claude. The plugin is installed for those
+          # runs too, so `@claude /code-review:code-review` also works there.
+          # A local path: the pinned checkout above, not a URL that follows `main`.
+          plugin_marketplaces: ${{ github.workspace }}/.review-plugins
+          plugins: 'code-review@claude-plugins-official'
+          prompt: ${{ github.event_name == 'pull_request' && format('/code-review:code-review --comment {0}/pull/{1}', github.repository, github.event.pull_request.number) || '' }}
 
-          # Without this, the automatic review reads the diff and then throws the
-          # result away.
+          # No `track_progress` here, on purpose. With a prompt, a `pull_request`
+          # run is in **agent mode**, which creates no tracking comment. With the
+          # old hand-written brief that was a problem: agent mode hands the agent
+          # no comment-posting tool, so the review ran and posted nothing
+          # (#163, #164). `track_progress` fixed that by forcing tag mode.
           #
-          # Supplying `prompt` makes v1 auto-detect **agent mode** (the explicit
-          # `mode:` input is deprecated), and agent mode creates no tracking comment
-          # and hands the agent no comment-posting tool. So the run does the work,
-          # exits `is_error: false`, and posts nothing — a green check on a review
-          # that nobody can read. Asking for it in the prompt above cannot help:
-          # there is no tool to honour the request with. Confirmed on #163 and #164,
-          # whose logs show `Mode: agent` and, unlike an @claude run, not one
-          # `mcp__github_comment__update_claude_comment` call.
+          # The plugin brings its own way to post: `gh pr comment` for the summary,
+          # granted by its own `allowed-tools`, and the inline-comment tool, which
+          # the action adds in agent mode once `claude_args` allows it (below).
+          # Forcing tag mode now would hurt twice. Tag mode wraps `prompt` into its
+          # own prompt as custom instructions, so the slash command would arrive
+          # as text and not run. And its tracking comment would sit next to the
+          # plugin's own comments, so every review would post twice.
           #
-          # `track_progress` forces tag mode while keeping the brief above: the
-          # action pre-creates the tracking comment and gives the agent the tool to
-          # fill it in. Scoped to `pull_request` because every other trigger here is
-          # already in tag mode and needs no forcing.
-          #
-          # NOTE: this is NOT a permissions problem, and granting `issues: write` /
-          # `pull-requests: write` would not have fixed it. The action posts with its
-          # own OIDC-minted token (hence `id-token: write`), which is why @claude runs
+          # NOTE: posting is NOT a permissions problem, and granting `issues: write`
+          # / `pull-requests: write` would not change it. The action posts with its
+          # own OIDC-minted token (hence `id-token: write`), which is why runs
           # comment happily under the read-only scopes above.
-          track_progress: ${{ github.event_name == 'pull_request' }}
 
           # `--model` picks the reviewer. Left unset the action runs on Sonnet (run
           # 30373275450 logged `"model": "claude-sonnet-5"`), and review is the one job
@@ -170,6 +192,11 @@ jobs:
           # This ADDS to the defaults rather than replacing them — per the action docs,
           # "the base GitHub tools are always included" — so file reading and comment
           # posting are unaffected.
+          #
+          # `mcp__github_inline_comment__create_inline_comment` is how the plugin
+          # comments on a line. Listing it here is also what makes the action
+          # start that tool's server at all: it does so only when the tool is
+          # allowed.
           #
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options.
@@ -200,4 +227,4 @@ jobs:
           # on every PR; the reviewer reads those results through `actions: read`
           # instead of re-running them. Revisit only together with setup steps, and
           # weigh the minutes they add to every review pass.
-          claude_args: '--model claude-opus-5-5 --allowedTools "WebSearch,WebFetch,Bash(gh api:*),Bash(git:*),Bash(bash scripts/:*),Bash(python3 scripts/:*)"'
+          claude_args: '--model claude-opus-5-5 --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch,WebFetch,Bash(gh api:*),Bash(git:*),Bash(bash scripts/:*),Bash(python3 scripts/:*)"'
