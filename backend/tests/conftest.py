@@ -139,3 +139,29 @@ def other_client_fixture(session: Session, other_user: User):
 def second_list_fixture(client):
     resp = client.post("/lists", json={"name": "Lista 2"})
     return resp.json()
+
+
+@pytest.fixture(name="lose_commit_race")
+def lose_commit_race_fixture(session: Session, monkeypatch):
+    """Make the next commit lose a unique-index race, as on Postgres.
+
+    The SQLite harness serialises on StaticPool, so a real race never
+    happens. The fake drops the pending write, commits the rows another
+    request wrote in the meantime (none, if not given), and raises the
+    IntegrityError the losing request would see. Later commits are real.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    real_commit = session.commit
+
+    def lose(*their_rows):
+        def commit():
+            monkeypatch.setattr(session, "commit", real_commit)
+            session.rollback()
+            session.add_all(their_rows)
+            real_commit()
+            raise IntegrityError("INSERT", {}, Exception("unique"))
+
+        monkeypatch.setattr(session, "commit", commit)
+
+    return lose

@@ -115,6 +115,7 @@ def test_patch_features_can_create_a_disabled_override(
         f"/admin/users/{user.id}/features",
         json={"feature": "push_notifications", "enabled": False},
     )
+    assert response.status_code == 200
     assert "push_notifications" not in response.json()["features"]
     row = session.exec(select(UserFeature).where(UserFeature.user_id == user.id)).one()
     assert row.enabled is False

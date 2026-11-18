@@ -272,6 +272,7 @@ def test_rename_store_touches_only_that_lists_row_for_that_key(
     _store(session, lst["id"], "id-3", "lidl", "Lidl")
 
     response = client.patch(f"/lists/{lst['id']}/stores/lidl", json={"display_name": "LIDL"})
+    assert response.status_code == 200
     assert response.json() == {"store_key": "lidl", "display_name": "LIDL"}
 
     rows = {(r.list_id, r.store_key): r.display_name for r in session.exec(select(ListStore))}

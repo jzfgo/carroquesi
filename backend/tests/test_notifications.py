@@ -127,25 +127,11 @@ def test_register_claims_only_the_token_it_names(
 
 
 def test_register_adopts_the_row_a_concurrent_registration_wrote(
-    client, session: Session, monkeypatch, user: User, other_user: User
+    client, session: Session, lose_commit_race, user: User, other_user: User
 ):
-    from sqlalchemy.exc import IntegrityError
-
     _add_token(session, "tok-1", other_user.id, "tok-other")
-    real_commit = session.commit
-    state = {"failed": False}
-
-    def commit():
-        if state["failed"]:
-            return real_commit()
-        # Another request registers the same token between our lookup and our commit.
-        state["failed"] = True
-        session.rollback()
-        session.add(PushToken(id="tok-2", user_id=other_user.id, token="tok-race"))
-        real_commit()
-        raise IntegrityError("INSERT", {}, Exception("unique"))
-
-    monkeypatch.setattr(session, "commit", commit)
+    # Another request registers the same token between our lookup and our commit.
+    lose_commit_race(PushToken(id="tok-2", user_id=other_user.id, token="tok-race"))
 
     assert client.post("/notifications/tokens", json={"token": "tok-race"}).status_code == 204
 

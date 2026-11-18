@@ -190,35 +190,13 @@ def test_the_generic_name_is_the_last_fallback(client: TestClient, httpx_mock: H
     assert client.get(f"/barcode/{_EAN13}").json()["name"] == "Milk"
 
 
-def _commit_fails_once(session: Session, monkeypatch, before_raise=None):
-    from sqlalchemy.exc import IntegrityError
-
-    real_commit = session.commit
-    state = {"failed": False}
-
-    def commit():
-        if state["failed"]:
-            return real_commit()
-        state["failed"] = True
-        session.rollback()
-        if before_raise:
-            before_raise(real_commit)
-        raise IntegrityError("INSERT", {}, Exception("unique"))
-
-    monkeypatch.setattr(session, "commit", commit)
-
-
 def test_a_concurrent_request_that_cached_the_ean_first_wins(
-    client: TestClient, httpx_mock: HTTPXMock, session: Session, monkeypatch
+    client: TestClient, httpx_mock: HTTPXMock, lose_commit_race
 ):
     httpx_mock.add_response(url=_OFF_URL_EAN13, json=OFF_MAHOU)
-
-    def concurrent_insert(real_commit):
-        session.add(BarcodeCache(ean="00000000", name="Otro"))
-        session.add(BarcodeCache(ean=_EAN13, name="Suyo"))
-        real_commit()
-
-    _commit_fails_once(session, monkeypatch, concurrent_insert)
+    lose_commit_race(
+        BarcodeCache(ean="00000000", name="Otro"), BarcodeCache(ean=_EAN13, name="Suyo")
+    )
 
     data = client.get(f"/barcode/{_EAN13}").json()
     assert data["ean"] == _EAN13
@@ -226,9 +204,9 @@ def test_a_concurrent_request_that_cached_the_ean_first_wins(
 
 
 def test_a_failed_cache_write_with_no_row_to_return_is_a_503(
-    client: TestClient, httpx_mock: HTTPXMock, session: Session, monkeypatch
+    client: TestClient, httpx_mock: HTTPXMock, lose_commit_race
 ):
     httpx_mock.add_response(url=_OFF_URL_EAN13, json=OFF_MAHOU)
-    _commit_fails_once(session, monkeypatch)
+    lose_commit_race()
 
     assert client.get(f"/barcode/{_EAN13}").status_code == 503
