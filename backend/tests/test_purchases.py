@@ -1726,16 +1726,19 @@ def test_rebuy_notifies_who_added_what(client: TestClient, session: Session, use
     assert (event, name) == ("added", "Leche")
 
 
-def test_a_failed_push_still_rebuys_and_is_logged(client: TestClient, caplog):
+def test_a_failed_push_still_rebuys_and_is_logged(client: TestClient):
     lst = _create_list(client)
     milk = _tap(client, lst["id"], "Leche")
     ticket = _close(client, lst["id"], store="Lidl", lines=_lines(milk)).json()
 
-    with patch("app.routers.purchases.notify_list_change", side_effect=RuntimeError("down")):
+    with (
+        patch("app.routers.purchases.notify_list_change", side_effect=RuntimeError("down")),
+        patch("app.routers.purchases.logger") as logger,
+    ):
         response = _rebuy(client, lst["id"], ticket["id"], milk["id"])
 
     assert response.status_code == 201
-    assert f"push notification failed for list {lst['id']}" in caplog.text
+    logger.exception.assert_called_once_with("push notification failed for list %s", lst["id"])
 
 
 def _noon_today() -> datetime:
