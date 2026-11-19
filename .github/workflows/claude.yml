@@ -208,12 +208,20 @@ jobs:
           # the tool list below.
           #
           # Let the reviewer check claims against primary sources instead of recalling
-          # them. Without this, WebSearch/WebFetch fail closed: `--allowedTools` is an
+          # them. Without this, WebSearch fails closed: `--allowedTools` is an
           # AUTO-APPROVAL list, not an availability restriction (use `--tools` for
           # that), so an omitted tool still exists but hits a permission prompt — and
           # in headless CI nothing can answer it, so the call comes back denied. That
           # is what a reviewer on #122 hit: "I still don't have working
           # WebSearch/WebFetch (both came back as permission-denied)".
+          #
+          # WebFetch is left off on purpose, so it stays denied. The action writes its
+          # write-scoped app token into origin's URL in `.git/config`, and Claude can
+          # read it: read-only shell commands are auto-approved, and a glob
+          # (`cat .g?t/c*`) slips past `Read(./.git/**)` deny rules, so no denylist
+          # hides it. WebFetch would let injected text send it to any server. Without
+          # it the only way out is a GitHub comment, in public, and the action revokes
+          # the token when the job ends (its `Revoke app token` step).
           #
           # This ADDS to the defaults rather than replacing them — per the action docs,
           # "the base GitHub tools are always included" — so file reading and comment
@@ -241,14 +249,20 @@ jobs:
           # wrote the comment. Removing the author gate re-opens arbitrary API writes to
           # any commenter.
           #
-          # `Bash(git:*)` and the two `scripts/` prefixes let the reviewer RUN things
-          # instead of only reading them. The reviewer on #133 had every such call
-          # denied ("everything below is static analysis"), and the reviews of #175
-          # showed why that matters: every claim made by reading alone needed
-          # correcting, every claim that arrived with a run held. The repo's tooling
-          # scripts are dependency-free by design — they must work on a bare checkout —
-          # so granting them costs no setup. Git writes cannot land: the checkout's
-          # persisted token has `contents: read`, so a push is refused server-side.
+          # The read-only git subcommands and the two `scripts/` prefixes let the
+          # reviewer RUN things instead of only reading them. The reviewer on #133 had
+          # every such call denied ("everything below is static analysis"), and the
+          # reviews of #175 showed why that matters: every claim made by reading alone
+          # needed correcting, every claim that arrived with a run held. The repo's
+          # tooling scripts are dependency-free by design — they must work on a bare
+          # checkout — so granting them costs no setup.
+          #
+          # Subcommands, not `Bash(git:*)`: a push WOULD land. The action swaps the
+          # checkout's read-only credential for its own write-scoped app token in
+          # origin's URL, so `git push`, `git remote` and `git config` must stay
+          # denied. Prefix rules cannot vet arguments (`--output=<file>` on
+          # log/diff/show writes files, `git grep -O<cmd>` runs one), so this narrows
+          # the surface; the author gate above is still what keeps it safe.
           #
           # Deliberately NOT granted: the real test suites (just / pnpm / uv). They
           # need toolchains this job does not install, so approving them would only
@@ -256,4 +270,4 @@ jobs:
           # on every PR; the reviewer reads those results through `actions: read`
           # instead of re-running them. Revisit only together with setup steps, and
           # weigh the minutes they add to every review pass.
-          claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch,WebFetch,Bash(gh api:*),Bash(git:*),Bash(bash scripts/:*),Bash(python3 scripts/:*)"'
+          claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch,Bash(gh api:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*),Bash(git grep:*),Bash(bash scripts/:*),Bash(python3 scripts/:*)"'
