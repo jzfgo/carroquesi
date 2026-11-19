@@ -5,7 +5,7 @@
       "source": "jzfgo/agents",
       "sourceType": "github",
       "skillPath": "skills/babysit-pr/SKILL.md",
-      "computedHash": "44c8243af3dcd361bf5acf8b37807fbda94e9c9318df316f1a6db7b8a514b697"
+      "computedHash": "4b703fca7ba184c86fe1e67972404b1f00b49a7e6d421b970c5825794fc2c07c"
     },
     "fastapi": {
       "source": "fastapi/fastapi",
