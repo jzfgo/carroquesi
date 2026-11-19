@@ -191,11 +191,12 @@ A PR merged in between would ship in X.Y.Z without being in its changelog:
 
 ```bash
 git fetch origin
-git log -1 --format='%h %s' origin/develop   # → chore: release X.Y.Z (#N)
+git log -1 --format='%H %s' origin/develop   # → <sha> chore: release X.Y.Z (#N)
 ```
 
-If the tip is anything else, stop and ask the user. Then open the deploy PR from
-`develop` itself:
+If the tip is anything else, stop and ask the user. Otherwise note that full SHA:
+it is the release commit, used again in steps 10 and 11. Then open the deploy PR
+from `develop` itself:
 
 ```bash
 gh pr create \
@@ -208,16 +209,23 @@ gh pr create \
 Body: one line saying it deploys X.Y.Z to production, the changelog sections from
 the version PR, and the merge instruction below.
 
+The PR's head is the branch, not a commit. A PR that squashes into `develop`
+while the deploy PR is open moves its head, and would ship in X.Y.Z without being
+in its changelog. Steps 10 and 11 guard against that.
+
 ## 10. Merge the deploy PR with a merge commit
 
 The `main` ruleset allows only merge commits, so the GitHub UI offers no other
-button. With `gh`, the method is `--merge`:
+button. With `gh`, the method is `--merge`, pinned to the release commit so
+GitHub refuses the merge if `develop` has moved:
 
 ```bash
-gh pr merge <number> --merge
+gh pr merge <number> --merge --match-head-commit <release-sha>
 ```
 
-As with any PR, the user merges, or tells you to use `--admin`. Never squash it: a
+As with any PR, the user merges, or tells you to use `--admin`. Put the pinned
+command in the PR body for them. If they merge in the UI instead, nothing pins
+the head, and step 11's check is what catches a moved `develop`. Never squash it: a
 squash gives `main` a commit `develop` does not have, and the two branches drift
 until every deploy PR conflicts.
 
@@ -231,17 +239,27 @@ merge commit. Do not tag the merge commit itself: it is not in `develop`'s
 history, so `git cliff` on the next release branch would not see it and would
 repeat every entry since the tag before.
 
+First check both conditions. Do not tag unless both print:
+
 ```bash
 git fetch origin
-git log -1 --format='%h %s' origin/main^2   # → chore: release X.Y.Z (#N)
+git rev-parse origin/main^2                  # must equal <release-sha> from step 9
 git diff --quiet origin/main^2 origin/main && echo same-tree
-git tag vX.Y.Z origin/main^2
-git push origin vX.Y.Z
 ```
 
-`same-tree` must print: the merge commit deploys exactly the tagged tree. If it
-does not, `main` held a change `develop` lacked (see step 0). Stop and tell the
-user instead of tagging.
+- If `origin/main^2` is not the release commit, `develop` moved before the merge:
+  production now runs a commit the changelog does not describe. Stop and tell the
+  user.
+- If `same-tree` does not print, the merge commit deploys a tree the release
+  commit does not have: `main` held a change `develop` lacked (see step 0). Stop
+  and tell the user.
+
+When both hold, tag the release commit:
+
+```bash
+git tag vX.Y.Z <release-sha>
+git push origin vX.Y.Z
+```
 
 ## Troubleshooting
 
@@ -254,7 +272,7 @@ committed lock is stale and the `deps` post-start hook (`uv sync`) rewrites it o
 every new worktree. Fix it at the root: run `uv lock --project backend` and commit
 the one-line result, rather than discarding the change each time.
 
-**`git tag vX.Y.Z origin/main^2` fails with "tag already exists"**
+**`git tag vX.Y.Z <release-sha>` fails with "tag already exists"**
 `git tag` creates the tag locally; `git push origin vX.Y.Z` is a separate command.
 So a tag step that failed to push leaves the local tag behind, and re-running it
 stops here. Confirm the existing tag is not the real one (`git log -1 vX.Y.Z`),
