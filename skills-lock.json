@@ -11,7 +11,7 @@
       "source": "fastapi/fastapi",
       "sourceType": "github",
       "skillPath": "fastapi/.agents/skills/fastapi/SKILL.md",
-      "computedHash": "2f0ff30756b435168276e1a7eb78c07856118575ea174535de7ed86dc88c9be4"
+      "computedHash": "3243a49ef98dbddae7e7252e3fd75405feab998e630ac9a1dadfecf38f27b8d8"
     },
     "sync-docs": {
       "source": "jzfgo/agents",
@@ -23,7 +23,7 @@
       "source": "max-sixty/worktrunk",
       "sourceType": "github",
       "skillPath": "skills/worktrunk/SKILL.md",
-      "computedHash": "448297d440452c65cf157a5794ff42bd518aa63fddda788e4cdf2564a4bc971a"
+      "computedHash": "e6e360b293bde32fe4c6ca6a97f995544f1117902f1e4f11a2c5de60589614cb"
     }
   }
 }
