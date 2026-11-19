@@ -1,0 +1,11 @@
+{
+  "name": "babysit-pr",
+  "description": "Drive a GitHub PR to merge-ready: triage review comments, fix real issues, rebut false positives, fix CI, and loop on @claude re-reviews until a review of HEAD comes back clean",
+  "author": {
+    "name": "Javier Zapata",
+    "email": "javierzapata82@gmail.com"
+  },
+  "homepage": "https://github.com/jzfgo/agents/tree/main/skills/babysit-pr",
+  "license": "MIT",
+  "keywords": ["github", "pull-request", "code-review", "ci", "claude-code-action"]
+}

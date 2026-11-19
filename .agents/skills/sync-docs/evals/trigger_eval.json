@@ -1,0 +1,15 @@
+[
+  {"query": "sync the docs with the code", "should_trigger": true},
+  {"query": "are the docs up to date after this release?", "should_trigger": true},
+  {"query": "audit AGENTS.md and the README for stale claims", "should_trigger": true},
+  {"query": "revisa si la documentación sigue cuadrando con el código", "should_trigger": true},
+  {"query": "write a README for this project", "should_trigger": false},
+  {"query": "generate the changelog for 1.2.0", "should_trigger": false},
+  {"query": "make this README read better", "should_trigger": false},
+  {"query": "create a CLAUDE.md for this repo", "should_trigger": false},
+  {"query": "add docstrings to these functions", "should_trigger": false},
+  {"query": "review this PR", "should_trigger": false},
+  {"query": "sync the docs folder to the S3 bucket", "should_trigger": false},
+  {"query": "regenerate the API docs from the OpenAPI spec", "should_trigger": false},
+  {"query": "we shipped the export feature, draft the release notes", "should_trigger": false}
+]
