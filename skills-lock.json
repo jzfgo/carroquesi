@@ -1,29 +1,29 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
     "babysit-pr": {
       "source": "jzfgo/agents",
       "sourceType": "github",
       "skillPath": "skills/babysit-pr/SKILL.md",
-      "computedHash": "c7b2b53b9ed7d6270180a5dcb81970bb8a66f54bc190fdebd5b39a1e34b99556"
+      "computedHash": "44c8243af3dcd361bf5acf8b37807fbda94e9c9318df316f1a6db7b8a514b697"
     },
     "fastapi": {
       "source": "fastapi/fastapi",
       "sourceType": "github",
       "skillPath": "fastapi/.agents/skills/fastapi/SKILL.md",
-      "computedHash": "3243a49ef98dbddae7e7252e3fd75405feab998e630ac9a1dadfecf38f27b8d8"
+      "computedHash": "141f0146e357365d518029ccc74e5b0a256f9a352573c65856780995d1bea52c"
     },
     "sync-docs": {
       "source": "jzfgo/agents",
       "sourceType": "github",
       "skillPath": "skills/sync-docs/SKILL.md",
-      "computedHash": "5a99d55a4f746a75a38bf4d62f4aa6f10075b6e398d1bc04f0791b8bc8ff2645"
+      "computedHash": "0f09eac21899e721f1c96d3c4b3abadd3e988aa7f478fc991cdebf81bd913c83"
     },
     "worktrunk": {
       "source": "max-sixty/worktrunk",
       "sourceType": "github",
       "skillPath": "skills/worktrunk/SKILL.md",
-      "computedHash": "e6e360b293bde32fe4c6ca6a97f995544f1117902f1e4f11a2c5de60589614cb"
+      "computedHash": "6cc07f1de091a2566b9d34ff0afad96f30c1d6cbc4cb8ec9de1eb3d3a977d74b"
     }
   }
 }
