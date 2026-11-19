@@ -239,7 +239,7 @@ merge commit. Do not tag the merge commit itself: it is not in `develop`'s
 history, so `git cliff` on the next release branch would not see it and would
 repeat every entry since the tag before.
 
-First check both conditions. Do not tag unless both print:
+First check both conditions. Do not tag unless both hold:
 
 ```bash
 git fetch origin
@@ -249,7 +249,9 @@ git diff --quiet origin/main^2 origin/main && echo same-tree
 
 - If `origin/main^2` is not the release commit, `develop` moved before the merge:
   production now runs a commit the changelog does not describe. Stop and tell the
-  user.
+  user. The usual fix is to tag `<release-sha>` anyway: the extra commits come
+  after it on `develop`, so the next release lists them, and nothing is lost or
+  listed twice. No revert or new release is needed. Ask before you tag.
 - If `same-tree` does not print, the merge commit deploys a tree the release
   commit does not have: `main` held a change `develop` lacked (see step 0). Stop
   and tell the user.
