@@ -222,10 +222,10 @@ jobs:
           # first step may also decide the PR needs no review (a trivial or
           # automated change, or one Claude already commented on) and stop
           # without posting anything. The `review-skipped` job below turns that
-          # silence into a comment. Every other trigger passes
-          # an empty prompt, which leaves the action following the instruction in
-          # the comment that mentioned @claude. The plugin is installed for those
-          # runs too, so `@claude /code-review:code-review` also works there.
+          # silence into a comment. Every other trigger passes an empty prompt,
+          # which leaves the action following the instruction in the comment
+          # that mentioned @claude. The plugin is installed for those runs too,
+          # so `@claude /code-review:code-review` also works there.
           # The plugin itself comes from `--plugin-dir` in `claude_args` below.
           prompt: ${{ github.event_name == 'pull_request' && format('/code-review:code-review --comment {0}/pull/{1}', github.repository, github.event.pull_request.number) || '' }}
 
@@ -334,11 +334,12 @@ jobs:
             exit 1
           fi
           # Summary comments, inline comments and reviews: the plugin can post
-          # any of the three.
+          # any of the three. A group returns only its last command's status,
+          # and `$(...)` drops `-e`, so `&&` is what makes each lookup count.
           count=$(
             {
-              gh api --paginate "repos/$GH_REPO/issues/$PR/comments" --jq '.[] | [.user.login, .created_at] | @tsv'
-              gh api --paginate "repos/$GH_REPO/pulls/$PR/comments" --jq '.[] | [.user.login, .created_at] | @tsv'
+              gh api --paginate "repos/$GH_REPO/issues/$PR/comments" --jq '.[] | [.user.login, .created_at] | @tsv' &&
+              gh api --paginate "repos/$GH_REPO/pulls/$PR/comments" --jq '.[] | [.user.login, .created_at] | @tsv' &&
               gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" --jq '.[] | [.user.login, .submitted_at] | @tsv'
             } | awk -F '\t' -v since="$SINCE" '$1 == "claude[bot]" && $2 >= since' | wc -l
           )
