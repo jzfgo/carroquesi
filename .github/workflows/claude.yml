@@ -108,7 +108,14 @@ jobs:
       issues: read
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
+    outputs:
+      started: ${{ steps.started.outputs.at }}
     steps:
+      # The `review-skipped` job counts Claude's comments made after this.
+      - name: Note when the run started
+        id: started
+        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       # Fails closed: if the lookup fails or the fork is gone, `head` is empty
       # and the run stops. Issues that are not PRs leave `PR` empty and pass.
       - name: Refuse to run on pull requests from forks
@@ -211,11 +218,14 @@ jobs:
 
           # `pull_request` runs have no comment to follow, so they run the official
           # `code-review` plugin. It comments on each line of the diff it has an
-          # issue with, and posts "No issues found" when it has none, so a clean
-          # pass is distinguishable from a silent one. Every other trigger passes
-          # an empty prompt, which leaves the action following the instruction in
-          # the comment that mentioned @claude. The plugin is installed for those
-          # runs too, so `@claude /code-review:code-review` also works there.
+          # issue with, and posts "No issues found" when it has none. But its
+          # first step may also decide the PR needs no review (a trivial or
+          # automated change, or one Claude already commented on) and stop
+          # without posting anything. The `review-skipped` job below turns that
+          # silence into a comment. Every other trigger passes an empty prompt,
+          # which leaves the action following the instruction in the comment
+          # that mentioned @claude. The plugin is installed for those runs too,
+          # so `@claude /code-review:code-review` also works there.
           # The plugin itself comes from `--plugin-dir` in `claude_args` below.
           prompt: ${{ github.event_name == 'pull_request' && format('/code-review:code-review --comment {0}/pull/{1}', github.repository, github.event.pull_request.number) || '' }}
 
@@ -295,3 +305,47 @@ jobs:
           # checks) as unverified. Only `@claude` runs get the CI tools that
           # read results through `actions: read`.
           claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch"'
+
+  # The plugin can stop before reviewing and post nothing, and the run still
+  # ends green. Without a comment, a skipped review looks like a review that
+  # has not arrived yet. This job says so on the PR.
+  #
+  # It is a separate job so that its write token never reaches the agent: the
+  # `claude` job keeps read-only scopes. `needs` makes this job wait for it and
+  # run only when it succeeded, because a failed run is already a red check.
+  review-skipped:
+    needs: claude
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Comment when the review posted nothing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          SINCE: ${{ needs.claude.outputs.started }}
+        run: |
+          # A failed lookup must fail the job, not read as zero comments.
+          set -o pipefail
+          if [ -z "$SINCE" ]; then
+            echo "::error::The claude job did not report when it started."
+            exit 1
+          fi
+          # Summary comments, inline comments and reviews: the plugin can post
+          # any of the three. A group returns only its last command's status,
+          # and `$(...)` drops `-e`, so `&&` is what makes each lookup count.
+          count=$(
+            {
+              gh api --paginate "repos/$GH_REPO/issues/$PR/comments" --jq '.[] | [.user.login, .created_at] | @tsv' &&
+              gh api --paginate "repos/$GH_REPO/pulls/$PR/comments" --jq '.[] | [.user.login, .created_at] | @tsv' &&
+              gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" --jq '.[] | [.user.login, .submitted_at] | @tsv'
+            } | awk -F '\t' -v since="$SINCE" '$1 == "claude[bot]" && $2 >= since' | wc -l
+          )
+          [ "$count" -gt 0 ] && exit 0
+          gh pr comment "$PR" --body-file - <<'MSG'
+          Revisión automática omitida: el plugin `code-review` decidió que este PR no la necesita (cambio trivial o automático, o ya hay un comentario de Claude) y no publicó nada.
+
+          Si quieres una revisión, comenta `@claude /code-review:code-review`.
+          MSG
