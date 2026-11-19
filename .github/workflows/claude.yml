@@ -257,8 +257,9 @@ jobs:
           # read it: read-only shell commands are auto-approved, and a glob
           # (`cat .g?t/c*`) slips past `Read(./.git/**)` deny rules, so no denylist
           # hides it. WebFetch would let injected text send it to any server. Without
-          # it the only way out is a GitHub comment, in public, and the action revokes
-          # the token when the job ends (its `Revoke app token` step).
+          # it the only ways out are a GitHub comment or a push to the PR branch, both
+          # public, and the action revokes the token when the job ends (its `Revoke app
+          # token` step).
           #
           # This ADDS to the defaults rather than replacing them — per the action docs,
           # "the base GitHub tools are always included" — so file reading and comment
@@ -274,6 +275,7 @@ jobs:
           #
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options.
+          #
           # This file grants no Bash, on purpose. (On comment triggers the
           # action still adds its own `git add`/`commit`/`rm` and push wrapper,
           # so an `@claude` run can push to the PR branch.) A prefix rule
