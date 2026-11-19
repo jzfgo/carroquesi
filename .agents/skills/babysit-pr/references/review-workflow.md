@@ -6,6 +6,11 @@ Step 0 finds no such workflow, or to check the one it found. Show the user the
 gaps; do not edit the workflow from inside the loop, since a PR that edits it
 cannot be reviewed by it.
 
+When the workflow is missing, the *Minimal example* below is the template for
+the separate PR that SKILL.md's *No review workflow* offers, filled in as
+*Filling in the example* says. That PR goes against the default branch and
+only with the user's yes.
+
 ## Checklist
 
 1. **Comment triggers.** `issue_comment` (top-level PR comments) and
@@ -98,6 +103,34 @@ jobs:
 
 The action posts with its own OIDC-minted token (hence `id-token: write`), so the
 read-only scopes above do not stop it commenting.
+
+## Filling in the example
+
+Fill each placeholder from what the repo has, as SKILL.md's *No review workflow*
+reads it; never from a guess:
+
+- **`include_comments_by_actor`:** replace `<your-login>` with the trusted logins,
+  comma-separated, and keep `claude[bot]` last.
+- **The secret:** keep `claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}`
+  for an OAuth token. For an API key, replace that line with
+  `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}`. Use one, never both.
+- **Pinning:** if the repo pins actions to commit SHAs, pin both `uses:` lines
+  to the latest release, with the tag as a trailing comment, as the repo does:
+
+  ```bash
+  tag=$(gh release view --repo anthropics/claude-code-action --json tagName --jq .tagName)
+  gh api "repos/anthropics/claude-code-action/commits/$tag" --jq .sha
+  ```
+
+  ```yaml
+  - uses: anthropics/claude-code-action@<sha> # <tag>
+  ```
+
+  Do the same for `actions/checkout`. If the repo uses tags, keep the
+  example's major tags.
+- Leave everything else as it is. The checklist items it meets (the `@claude`
+  gate, both `author_association` gates, the quoted `run-name`) are the reason
+  the example exists; do not trim them to make the file shorter.
 
 Two optional additions make reviews more trustworthy. Both go in `claude_args`,
 which is a single string:
