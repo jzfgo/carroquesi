@@ -102,6 +102,17 @@ jobs:
         (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
     runs-on: ubuntu-latest
+    # Reviews take a few minutes. The limit stops a hung run from billing for
+    # the six-hour default.
+    timeout-minutes: 30
+    # One run per PR or issue at a time. A second @claude waits for the first,
+    # so two runs never post overlapping reviews or push to the same branch.
+    # The group is on this job, not on the workflow. At workflow level, every
+    # comment would join it, even one without @claude. GitHub keeps only one
+    # pending run per group, so such a comment would cancel a queued review.
+    concurrency:
+      group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
     permissions:
       contents: read
       pull-requests: read
