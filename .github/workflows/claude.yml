@@ -67,19 +67,35 @@ jobs:
     #
     # So every trigger also requires a trusted author. Do not remove these checks
     # while `claude_args` grants write-capable tools.
+    #
+    # The trigger is not enough: the agent can read the action's write-scoped app
+    # token (see `claude_args`), so everything it reads must come from a trusted
+    # account too. Comment triggers also require the issue's or PR's author to be
+    # trusted, which also keeps fork PRs out, and `include_comments_by_actor`
+    # drops everyone else's comments from the prompt. `Bash(gh api:*)` can still
+    # fetch them if the agent asks; what is left is that, WebSearch results, and
+    # anything a trusted account pastes in.
+    #
+    # So `@claude` silently does nothing on PRs opened by bots such as
+    # Dependabot (author association CONTRIBUTOR). That is on purpose: their
+    # bodies carry upstream release notes, written by whoever maintains the
+    # dependency. Review those with Claude locally instead.
     if: |
       (github.event_name == 'pull_request' &&
         github.event.pull_request.draft == false &&
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)) ||
       (github.event_name == 'issue_comment' &&
         contains(github.event.comment.body, '@claude') &&
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)) ||
       (github.event_name == 'pull_request_review_comment' &&
         contains(github.event.comment.body, '@claude') &&
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)) ||
       (github.event_name == 'pull_request_review' &&
         contains(github.event.review.body, '@claude') &&
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)) ||
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association) &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)) ||
       (github.event_name == 'issues' &&
         (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
@@ -91,10 +107,19 @@ jobs:
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
+      # Actions are pinned to a commit SHA, not a tag: a tag can be moved to
+      # other code, and this job holds the repo's Claude token. To bump one,
+      # resolve the new tag to its commit and update the trailing comment.
+      #
+      # `persist-credentials: false`: the action replaces the checkout's token
+      # with its own before Claude starts, but in agent mode it carries on if
+      # that fails, so the token is never written in the first place. The guard
+      # below fetches anonymously, which a public repo allows.
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       # A PR that edits this workflow cannot be reviewed by it: claude-code-action
       # refuses a workflow file that differs from the default branch's copy, and the
@@ -132,7 +157,7 @@ jobs:
       # that touches plugins/code-review and is at least 7 days old, like the
       # quarantine on every other dependency.
       - name: Check out the review plugin at a pinned commit
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: anthropics/claude-plugins-official
           ref: 9780cf407f5593727b668bae95a0c4ae2e0de1ae # code-review 1.0.1, 2026-10-26
@@ -155,9 +180,14 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@v1.0.271
+        uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          # Solo los comentarios, reviews y comentarios en línea de estas cuentas
+          # llegan al prompt; los de cualquier otra se descartan. Si añades un
+          # colaborador al repo, añádelo aquí o Claude no verá sus comentarios.
+          include_comments_by_actor: "jzfgo,claude[bot]"
 
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
@@ -199,12 +229,20 @@ jobs:
           # the tool list below.
           #
           # Let the reviewer check claims against primary sources instead of recalling
-          # them. Without this, WebSearch/WebFetch fail closed: `--allowedTools` is an
+          # them. Without this, WebSearch fails closed: `--allowedTools` is an
           # AUTO-APPROVAL list, not an availability restriction (use `--tools` for
           # that), so an omitted tool still exists but hits a permission prompt — and
           # in headless CI nothing can answer it, so the call comes back denied. That
           # is what a reviewer on #122 hit: "I still don't have working
           # WebSearch/WebFetch (both came back as permission-denied)".
+          #
+          # WebFetch is left off on purpose, so it stays denied. The action writes its
+          # write-scoped app token into origin's URL in `.git/config`, and Claude can
+          # read it: read-only shell commands are auto-approved, and a glob
+          # (`cat .g?t/c*`) slips past `Read(./.git/**)` deny rules, so no denylist
+          # hides it. WebFetch would let injected text send it to any server. Without
+          # it the only way out is a GitHub comment, in public, and the action revokes
+          # the token when the job ends (its `Revoke app token` step).
           #
           # This ADDS to the defaults rather than replacing them — per the action docs,
           # "the base GitHub tools are always included" — so file reading and comment
@@ -232,14 +270,20 @@ jobs:
           # wrote the comment. Removing the author gate re-opens arbitrary API writes to
           # any commenter.
           #
-          # `Bash(git:*)` and the two `scripts/` prefixes let the reviewer RUN things
-          # instead of only reading them. The reviewer on #133 had every such call
-          # denied ("everything below is static analysis"), and the reviews of #175
-          # showed why that matters: every claim made by reading alone needed
-          # correcting, every claim that arrived with a run held. The repo's tooling
-          # scripts are dependency-free by design — they must work on a bare checkout —
-          # so granting them costs no setup. Git writes cannot land: the checkout's
-          # persisted token has `contents: read`, so a push is refused server-side.
+          # The read-only git subcommands and the two `scripts/` prefixes let the
+          # reviewer RUN things instead of only reading them. The reviewer on #133 had
+          # every such call denied ("everything below is static analysis"), and the
+          # reviews of #175 showed why that matters: every claim made by reading alone
+          # needed correcting, every claim that arrived with a run held. The repo's
+          # tooling scripts are dependency-free by design — they must work on a bare
+          # checkout — so granting them costs no setup.
+          #
+          # Subcommands, not `Bash(git:*)`: a push WOULD land. The action swaps the
+          # checkout's read-only credential for its own write-scoped app token in
+          # origin's URL, so `git push`, `git remote` and `git config` must stay
+          # denied. Prefix rules cannot vet arguments (`--output=<file>` on
+          # log/diff/show writes files, `git grep -O<cmd>` runs one), so this narrows
+          # the surface; the author gate above is still what keeps it safe.
           #
           # Deliberately NOT granted: the real test suites (just / pnpm / uv). They
           # need toolchains this job does not install, so approving them would only
@@ -247,4 +291,4 @@ jobs:
           # on every PR; the reviewer reads those results through `actions: read`
           # instead of re-running them. Revisit only together with setup steps, and
           # weigh the minutes they add to every review pass.
-          claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch,WebFetch,Bash(gh api:*),Bash(git:*),Bash(bash scripts/:*),Bash(python3 scripts/:*)"'
+          claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch,Bash(gh api:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git blame:*),Bash(git grep:*),Bash(bash scripts/:*),Bash(python3 scripts/:*)"'
