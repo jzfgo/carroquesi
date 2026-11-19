@@ -1,49 +1,71 @@
 ---
 name: release
 description: >
-  Prepare and open a release PR for CarroQueSí. Use this whenever the user says
+  Prepare and ship a CarroQueSí release. Use this whenever the user says
   "prepare a release", "cut a release", "do a release", "make a new release",
   or mentions a specific version like "release 0.19.1". Handles the full workflow:
   determine the next version, create a worktree, regenerate the changelog, bump
-  versions in package.json and pyproject.toml, refresh uv.lock, commit, push,
-  and open a PR with post-merge tagging instructions. Always use this skill —
-  do not try to do the release workflow manually without it.
+  versions in package.json and pyproject.toml, refresh uv.lock, open the version
+  PR into develop, then the deploy PR from develop into main, and tag the release.
+  Always use this skill — do not try to do the release workflow manually without it.
 ---
 
 # Release Workflow
 
-This skill prepares a CarroQueSí release PR. Run every step in order — skipping
-any step is likely to leave the release PR incomplete.
+A release is two PRs:
+
+1. **The version PR**, `chore/release-X.Y.Z` → `develop`, squash-merged. It holds
+   the changelog and the version bump, like any other PR into `develop`.
+2. **The deploy PR**, `develop` → `main`, merged with a **merge commit**. It ships
+   what `develop` holds to production.
+
+The merge commit keeps `develop` an ancestor of `main`, so `develop` is never
+reset. Run every step in order — skipping any step is likely to leave the
+release incomplete.
 
 Requires `git-cliff` on `PATH` (install via your package manager, e.g. `pacman -S git-cliff` or `brew install git-cliff`); step 2 fails without it.
 
 ## 0. Determine the next version
 
-Run `git cliff --unreleased` (prints to stdout and leaves `CHANGELOG.md` alone) to see the entries the release will contain.
+Fetch, find the last tag on `develop`, then preview the entries since it (prints to stdout and leaves `CHANGELOG.md` alone):
+
+```bash
+git fetch origin --tags
+git describe --tags --abbrev=0 origin/develop   # → vOLD
+git cliff vOLD..origin/develop
+```
+
+The explicit range matters: a bare `git cliff --unreleased` reads the branch you have checked out, and in the main checkout that is usually `main`, which only holds what already shipped.
 
 - Any `feat:` entry → **minor** bump (0.X.0)
 - Only `fix:` entries → **patch** bump (0.Y.Z)
 - Breaking changes (rare) → **major** bump (X.0.0)
+- No entries at all (only `chore`/`ci`/`docs`/`test`) → there is nothing to release. Say so and ask before going on
 
 If the user explicitly named a version (e.g. "release 0.20.0"), use that instead.
 
 Get the current version from `frontend/package.json`:
 ```bash
-grep '"version"' frontend/package.json | head -1
+git show origin/develop:frontend/package.json | grep '"version"' | head -1
 ```
+
+Check that `main` holds nothing `develop` lacks. Everything reaches `main` through a deploy PR, so this prints nothing unless a PR went into `main` directly:
+
+```bash
+git log --oneline --no-merges origin/develop..origin/main
+```
+
+If it prints commits, stop and tell the user: those changes are not on `develop`, so staging never ran them, and the next release would not list them.
 
 ## 1. Create a worktree
 
-Edits on the protected branches (`main` and `develop`) are blocked. Always start by creating a worktree — and refresh local `develop` first: `wt` branches from the *local* ref, and a stale one produces a release PR that is born conflicting, with CI that never runs. The `+` is needed because `develop` is force-reset onto `main` after every release, so the remote ref is usually not a fast-forward of the local one. The fetch refuses while `develop` is checked out in any worktree; move that worktree off it first.
+Edits on the protected branches (`main` and `develop`) are blocked. Create a worktree from the remote ref: `wt` would otherwise branch from the *local* `develop`, which is stale whenever another machine merged since your last pull.
 
 ```bash
-git fetch origin +develop:develop
-wt switch --create chore/release-X.Y.Z --no-cd --format=json --yes
+wt switch --create chore/release-X.Y.Z --base origin/develop --no-cd --format=json --yes
 ```
 
-Then call `EnterWorktree` with the `path` from the JSON output.
-
-The worktree branches from the repo default branch, which is `develop` — exactly the base a release needs. Confirm the reported `base_branch` says `develop` before continuing.
+Then call `EnterWorktree` with the `path` from the JSON output, and confirm the reported `base_branch` is `origin/develop`.
 
 ## 2. Regenerate the changelog
 
@@ -56,7 +78,7 @@ This runs `scripts/strip-unreleased.py` (strips the old `[Unreleased]` block) th
 section containing only commits that `cliff.toml` includes (feat, fix, refactor/perf —
 chore/docs/test/ci are excluded).
 
-This is the **only** place `just changelog` is run. It is safe here, and not on a feature branch, because the release branch is based on `develop` and adds nothing but a `chore:` commit — after every release `develop` is reset onto the tagged `main` commit, so `git cliff` sees exactly the squashed PR commits since the last tag. That is the history `main` will gain when this PR squash-merges. A feature branch does not: its `feat`/`fix` commits are collapsed by the squash merge, so anything generated there describes commits that will not exist.
+This is the **only** place `just changelog` is run. It is safe here, and not on a feature branch, because the release branch starts at the tip of `develop` and adds nothing but a `chore:` commit. The previous tag sits on a `develop` commit, so `git cliff` sees exactly the squashed PR commits since the last release. A feature branch does not: its `feat`/`fix` commits are collapsed by the squash merge, so anything generated there describes commits that will not exist.
 
 ## 3. Rename [Unreleased] → versioned header
 
@@ -124,18 +146,15 @@ next model release.
 git push -u origin chore/release-X.Y.Z
 ```
 
-Do not tag locally. The tag is created on `main` after the merge (see the
-post-merge block in the PR body below) — a local tag here would point at a commit
-that squash-merging discards.
+Do not tag locally. The tag goes on the squashed commit in `develop` (step 11);
+a tag here would point at a commit that squash-merging discards.
 
-## 8. Open the PR
-
-`--base main` is explicit and required: the repo default branch is `develop`, and a release PR is the one PR that must not target it.
+## 8. Open the version PR
 
 ```bash
 gh pr create \
   --title "chore: release X.Y.Z" \
-  --base main \
+  --base develop \
   --head chore/release-X.Y.Z \
   --body "..."
 ```
@@ -155,22 +174,74 @@ PR body template:
 - <entry from the regenerated changelog>
 - <entry from the regenerated changelog>
 
-## Post-merge
+## After merge
 
-After squash merging, tag the merge commit on `main`:
-
-\`\`\`bash
-git fetch origin main
-git tag vX.Y.Z origin/main
-git push origin vX.Y.Z
-# Reset develop onto the released main. Lossless: the trees are identical
-# at this moment. Skipping it is how phantom conflicts start.
-git push --force origin origin/main:develop
-\`\`\`
+Open the deploy PR `develop` → `main` before anything else merges into `develop`.
 ```
 
 Fill in the changelog entries from what `just changelog` produced in step 2 — copy
 them directly from the `CHANGELOG.md` diff so the PR body matches exactly.
+
+The user squash-merges it, like any PR into `develop`. That push deploys staging.
+
+## 9. Open the deploy PR
+
+Once the version PR has merged, check that the tip of `develop` is its commit.
+A PR merged in between would ship in X.Y.Z without being in its changelog:
+
+```bash
+git fetch origin
+git log -1 --format='%h %s' origin/develop   # → chore: release X.Y.Z (#N)
+```
+
+If the tip is anything else, stop and ask the user. Then open the deploy PR from
+`develop` itself:
+
+```bash
+gh pr create \
+  --title "Release X.Y.Z" \
+  --base main \
+  --head develop \
+  --body "..."
+```
+
+Body: one line saying it deploys X.Y.Z to production, the changelog sections from
+the version PR, and the merge instruction below.
+
+## 10. Merge the deploy PR with a merge commit
+
+The `main` ruleset allows only merge commits, so the GitHub UI offers no other
+button. With `gh`, the method is `--merge`:
+
+```bash
+gh pr merge <number> --merge
+```
+
+As with any PR, the user merges, or tells you to use `--admin`. Never squash it: a
+squash gives `main` a commit `develop` does not have, and the two branches drift
+until every deploy PR conflicts.
+
+Do not delete `develop` after the merge. If `gh` asks, answer no; the ruleset
+blocks the deletion anyway.
+
+## 11. Tag the release
+
+Tag the version PR's commit on `develop`, which is the second parent of the
+merge commit. Do not tag the merge commit itself: it is not in `develop`'s
+history, so `git cliff` on the next release branch would not see it and would
+repeat every entry since the tag before.
+
+```bash
+git fetch origin
+git log -1 --format='%h %s' origin/main^2   # → chore: release X.Y.Z (#N)
+git diff --quiet origin/main^2 origin/main && echo same-tree
+git tag vX.Y.Z origin/main^2
+git push origin vX.Y.Z
+```
+
+`same-tree` must print: the merge commit deploys exactly the tagged tree. If it
+does not, `main` held a change `develop` lacked (see step 0). Stop and tell the
+user instead of tagging.
 
 ## Troubleshooting
 
@@ -183,13 +254,14 @@ committed lock is stale and the `deps` post-start hook (`uv sync`) rewrites it o
 every new worktree. Fix it at the root: run `uv lock --project backend` and commit
 the one-line result, rather than discarding the change each time.
 
-**Post-merge `git tag vX.Y.Z origin/main` fails with "tag already exists"**
+**`git tag vX.Y.Z origin/main^2` fails with "tag already exists"**
 `git tag` creates the tag locally; `git push origin vX.Y.Z` is a separate command.
-So a post-merge block that tagged and then failed to push leaves the local tag
-behind, and re-running the block stops here. Confirm the existing tag is not the
-real one (`git log -1 vX.Y.Z`), delete it with `git tag -d vX.Y.Z`, then re-run
-the block. Steps 0–8 never create a local tag, so a tag present before the merge
-is always a leftover.
+So a tag step that failed to push leaves the local tag behind, and re-running it
+stops here. Confirm the existing tag is not the real one (`git log -1 vX.Y.Z`),
+delete it with `git tag -d vX.Y.Z`, then re-run step 11. Steps 0–10 never create
+a local tag, so a tag present before step 11 is always a leftover.
 
-**`git push --force origin origin/main:develop` is rejected**
-The `develop` ruleset is blocking non-fast-forward pushes for your actor. The repo owner's bypass covers this; if you are not bypassing, stop and hand the reset to the maintainer rather than merging anything else into `develop` first — the reset must land before the next feature merge.
+**The deploy PR shows conflicts or old commits**
+`main` has a commit that `develop` does not: a squashed deploy PR, or a PR opened
+straight into `main`. Do not resolve it in the deploy PR. Stop and tell the user;
+the fix is to bring that commit into `develop` through a normal PR first.

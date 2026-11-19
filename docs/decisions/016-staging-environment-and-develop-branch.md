@@ -15,11 +15,11 @@ never cover them.
 A staging deployment fed by a `develop` branch:
 
 - Feature PRs squash into `develop`; every push deploys staging.
-- Production ships via a release PR `develop` → `main`, also squashed; `main`
-  holds one commit per release. After the merge, `develop` is force-reset onto
-  `main` — lossless (identical trees at that moment) and mandatory: it keeps
-  the merge-base fresh so release diffs stay accurate and hotfixes on `main`
-  do not produce phantom conflicts.
+- Production ships via a deploy PR `develop` → `main`, merged with a merge
+  commit. `develop` stays an ancestor of `main`, so the merge-base is always
+  the last release and the next deploy PR shows only what is new. The release's
+  version bump and changelog land first, in a squashed PR into `develop`, and
+  the tag goes on that commit, which both branches contain.
 - Same Firebase project, second Hosting site (`cqs-stg`). The `/i/**` rewrite
   can only target Cloud Run in the Hosting site's own project, which rules out
   a parallel Firebase project cheaply; auth pool, FCM sender, VAPID key,
@@ -42,6 +42,11 @@ A staging deployment fed by a `develop` branch:
   into the second project because of the rewrite constraint.
 - **`main` → staging, tag → production** — fewer moving parts, but the
   maintainer prefers an explicit develop/main split with releases as PRs.
+- **Squashed release PR plus a reset of `develop`** — the first version of
+  this ADR. `main` held one commit per release, and after each release
+  `develop` was force-reset onto it. The reset needed a force push through the
+  owner's bypass, and any commit that reached `main` without `develop` (a PR
+  opened straight into `main`) made the next release conflict.
 - **Seeded staging DB** — deterministic and private, but forfeits the
   migration rehearsal and costs seed maintenance. Revisit when the first real
   external users join; that is also the trigger to scrub personal data on
@@ -50,11 +55,14 @@ A staging deployment fed by a `develop` branch:
 ## Consequences
 
 - The repo default branch is `develop`; `gh`, Dependabot, and worktree
-  creation follow it. Release PRs pass `--base main` explicitly.
-- Rulesets protect both branches (`CI gate` + linear history). The
-  post-release reset needs a force push to `develop`; the owner's bypass
-  covers it.
-- `CHANGELOG.md` generation reads `develop` history; `main` no longer carries
-  per-PR commits.
+  creation follow it. The deploy PR passes `--base main` explicitly.
+- One ruleset per branch, both requiring `CI gate`. `develop`: squash only,
+  linear history, up to date with its base. `main`: merge commit only, without
+  linear history (a merge commit is not linear) and without the up-to-date rule
+  (`develop` never contains `main`'s merge commits, so it would always read
+  behind).
+- `CHANGELOG.md` generation reads `develop` history. Tags sit on `develop`
+  commits, which `main` also contains, so a tag never sits on a commit the
+  next release branch cannot see.
 - Both deploy workflows select their GitHub Environment by ref; the
   `Production` and `Staging` environments hold identical variable names.
