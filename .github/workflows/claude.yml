@@ -233,8 +233,9 @@ jobs:
           # end without posting anything, for a reason not yet confirmed (its
           # first step is meant to stop on trivial or automated changes, or on
           # PRs Claude already commented on). The `review-skipped` job below
-          # turns that silence into a comment, and the job summary says why. Every other trigger passes an empty prompt,
-          # which leaves the action following the instruction in the comment
+          # turns that silence into a comment, and the job summary shows what
+          # the agent did. Every other trigger passes an empty prompt, which
+          # leaves the action following the instruction in the comment
           # that mentioned @claude. The plugin is installed for those runs too,
           # so `@claude /code-review:code-review` also works there.
           # The plugin itself comes from `--plugin-dir` in `claude_args` below.
@@ -346,11 +347,11 @@ jobs:
           [ -f "$EXECUTION_FILE" ] || { echo "No execution file at $EXECUTION_FILE."; exit 0; }
           jq -r '
             def cut: tostring | if length > 300 then .[:300] + "…" else . end;
-            def inline: cut | gsub("\n"; " ") | gsub("`"; "ʼ");
+            def inline: cut | gsub("[\r\n]"; " ") | gsub("`"; "ʼ");
             (map(select(.type == "result")) | last) as $r
             | "## Claude run",
               "",
-              "`\($r.subtype // "no result")`, is_error=\($r.is_error | if . == null then "?" else . end), \($r.num_turns // "?") turns, \(($r.duration_ms // 0) / 1000 | floor) s, $\($r.total_cost_usd // "?")",
+              "`\($r.subtype // "no result")`, is_error=\($r.is_error | if . == null then "?" else . end), \($r.num_turns // "?") turns, \($r.duration_ms | if . == null then "?" else ./1000 | floor end) s, $\($r.total_cost_usd // "?")",
               "",
               "### Final message",
               "",
@@ -372,8 +373,8 @@ jobs:
           ' "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
   # Some runs end without posting anything (why is not yet confirmed), and
-  # the run still ends green. Without a comment, a skipped review looks like a review that
-  # has not arrived yet. This job says so on the PR.
+  # the run still ends green. Without a comment, a skipped review looks like
+  # a review that has not arrived yet. This job says so on the PR.
   #
   # It is a separate job so that its write token never reaches the agent: the
   # `claude` job keeps read-only scopes. `needs` makes this job wait for it and
