@@ -172,14 +172,14 @@ for (const { name: themeName, colorScheme } of THEMES) {
         ITEM_CAFE.brand ?? '',
       )
 
-      // Row tap opens the ficha. On a purchased record the fields are
-      // read-only — the name field is plain text, not a rename control — and
-      // the footer offers to buy it again.
+      // Row tap opens the ficha. The product fields describe the product, not
+      // the purchase, so they stay editable on a purchased record; the footer
+      // offers to buy it again.
       await card.locator('.item-card__body').click()
       const ficha = page.getByRole('dialog', { name: ITEM_CAFE.name })
       await expect(ficha).toBeVisible()
       await expect(ficha.getByRole('button', { name: /nombre/i })).toHaveCount(
-        0,
+        1,
       )
       await expect(
         ficha.getByRole('button', { name: 'Volver a comprar' }),

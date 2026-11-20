@@ -81,6 +81,7 @@ function renderSheet(
       displayStore={(raw) => raw}
       getToken={vi.fn(() => Promise.resolve('t'))}
       listId="l1"
+      listItems={[]}
       purchased={over.purchased}
       {...handlers}
       {...props}
@@ -199,12 +200,64 @@ test('Marca, Cantidad and Tiendas open their existing per-field editors', () => 
   expect(onEditField).toHaveBeenCalledWith('stores')
 })
 
-test('a purchased record renders its fields read-only', () => {
+test('a purchased record can still correct its product fields', () => {
+  const { onEditField } = renderSheet({ purchased: true })
+  fireEvent.click(screen.getByRole('button', { name: /marca/i }))
+  fireEvent.click(screen.getByRole('button', { name: /cantidad/i }))
+  fireEvent.click(screen.getByRole('button', { name: /tiendas/i }))
+  expect(onEditField.mock.calls).toEqual([['brand'], ['quantity'], ['stores']])
+  fireEvent.click(screen.getByRole('button', { name: /nombre/i }))
+  expect(
+    screen.getByRole('textbox', { name: 'Nombre del producto' }),
+  ).toBeInTheDocument()
+})
+
+const sibling = (name: string, brand: string | null, id: string) => ({
+  ...item,
+  id,
+  name,
+  brand,
+})
+
+test('renaming suggests the products the list already has', () => {
+  const { onRename } = renderSheet(
+    {},
+    {
+      listItems: [
+        item,
+        sibling('Leche entera', 'Puleva', 'i2'),
+        sibling('LECHE semidesnatada', 'Pascual', 'i3'),
+        sibling('Leche semidesnatada', 'Pascual', 'i4'),
+        sibling('Pan', null, 'i5'),
+      ],
+    },
+  )
+  fireEvent.click(screen.getByRole('button', { name: /nombre/i }))
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'Nombre del producto' }),
+    { target: { value: 'léche' } },
+  )
+
+  // One row per name + brand, never the line's own product.
+  const suggestions = screen.getAllByRole('button', { name: /pascual/i })
+  expect(suggestions).toHaveLength(1)
+  expect(screen.queryByRole('button', { name: /puleva/i })).toBeNull()
+  expect(screen.queryByRole('button', { name: /^pan/i })).toBeNull()
+
+  fireEvent.click(suggestions[0])
+  expect(onRename).toHaveBeenCalledWith('LECHE semidesnatada', 'Pascual')
+})
+
+test('renaming a purchased record warns that its prices move', () => {
   renderSheet({ purchased: true })
-  // None of the editable fields is a button any more.
-  expect(screen.getByText('Nombre').closest('button')).toBeNull()
-  expect(screen.getByText('Marca').closest('button')).toBeNull()
-  expect(screen.getByText('Tiendas').closest('button')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: /nombre/i }))
+  expect(screen.getByText(/historial de precios/i)).toBeInTheDocument()
+})
+
+test('renaming a pending line says nothing about prices', () => {
+  renderSheet()
+  fireEvent.click(screen.getByRole('button', { name: /nombre/i }))
+  expect(screen.queryByText(/historial de precios/i)).toBeNull()
 })
 
 test('the footer clone action calls onClone on a purchased record', () => {
