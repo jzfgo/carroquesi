@@ -229,11 +229,11 @@ jobs:
 
           # `pull_request` runs have no comment to follow, so they run the official
           # `code-review` plugin. It comments on each line of the diff it has an
-          # issue with, and posts "No issues found" when it has none. But its
-          # first step may also decide the PR needs no review (a trivial or
-          # automated change, or one Claude already commented on) and stop
-          # without posting anything. The `review-skipped` job below turns that
-          # silence into a comment. Every other trigger passes an empty prompt,
+          # issue with, and posts "No issues found" when it has none. Some runs
+          # end without posting anything, for a reason not yet confirmed (its
+          # first step is meant to stop on trivial or automated changes, or on
+          # PRs Claude already commented on). The `review-skipped` job below
+          # turns that silence into a comment, and the job summary says why. Every other trigger passes an empty prompt,
           # which leaves the action following the instruction in the comment
           # that mentioned @claude. The plugin is installed for those runs too,
           # so `@claude /code-review:code-review` also works there.
@@ -278,9 +278,10 @@ jobs:
           # read it: read-only shell commands are auto-approved, and a glob
           # (`cat .g?t/c*`) slips past `Read(./.git/**)` deny rules, so no denylist
           # hides it. WebFetch would let injected text send it to any server. Without
-          # it the only ways out are a GitHub comment or a push to the PR branch, both
-          # public, and the action revokes the token when the job ends (its `Revoke app
-          # token` step).
+          # it the only ways out are a GitHub comment, a push to the PR branch, or
+          # the job summary (its final message and tool inputs; see "Summarise what
+          # the agent did"), all public, and the action revokes the token when the
+          # job ends (its `Revoke app token` step).
           #
           # This ADDS to the defaults rather than replacing them — per the action docs,
           # "the base GitHub tools are always included" — so file reading and comment
@@ -325,14 +326,20 @@ jobs:
       #
       # Not the whole transcript, and not `show_full_output`. The repo is
       # public, so the summary is public too, and file contents the agent
-      # read stay out of it. Each tool input is cut to 300 characters. The
+      # read stay out of it. Each tool input is cut to 300 characters and the
+      # final message to 4000. Inputs go in code spans, so text the agent
+      # echoes (an `<!--`, say) cannot hide the rest of the summary. The
       # action only shows full output when `ACTIONS_STEP_DEBUG` is in the
       # step's environment, so `gh run rerun --debug` does not reveal it.
       #
       # `always()`: a failed run is the one most worth reading. The file is
       # missing only when the action stopped before Claude started.
+      # `continue-on-error`: a diagnostic must not change the outcome. A
+      # failure here would turn a good review red and, through `needs`, stop
+      # `review-skipped` from commenting.
       - name: Summarise what the agent did
         if: always() && steps.claude.outputs.execution_file != ''
+        continue-on-error: true
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
         run: |
@@ -343,12 +350,12 @@ jobs:
             (map(select(.type == "result")) | last) as $r
             | "## Claude run",
               "",
-              "`\($r.subtype // "no result")`, is_error=\($r.is_error), \($r.num_turns) turns, \(($r.duration_ms // 0) / 1000 | floor) s, $\($r.total_cost_usd)",
+              "`\($r.subtype // "no result")`, is_error=\($r.is_error | if . == null then "?" else . end), \($r.num_turns // "?") turns, \(($r.duration_ms // 0) / 1000 | floor) s, $\($r.total_cost_usd // "?")",
               "",
               "### Final message",
               "",
               "```",
-              ($r.result // "(none)" | gsub("```"; "ʼʼʼ")),
+              ($r.result // "(none)" | if length > 4000 then .[:4000] + "…" else . end | gsub("```"; "ʼʼʼ")),
               "```",
               "",
               "### Tool calls",
@@ -356,16 +363,16 @@ jobs:
               (map(select(.type == "assistant"))[]
                 | (if .parent_tool_use_id then "subagent" else "main" end) as $who
                 | .message.content[]? | select(.type == "tool_use")
-                | "- \($who) `\(.name)`: \(.input | inline)"),
+                | "- \($who) `\(.name)`: `\(.input | inline)`"),
               "",
               "### Permission denials",
               "",
               (($r.permission_denials // []) | if length == 0 then "None." else
-                (.[] | "- `\(.tool_name)`: \(.tool_input | inline)") end)
+                (.[] | "- `\(.tool_name)`: `\(.tool_input | inline)`") end)
           ' "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
-  # The plugin can stop before reviewing and post nothing, and the run still
-  # ends green. Without a comment, a skipped review looks like a review that
+  # Some runs end without posting anything (why is not yet confirmed), and
+  # the run still ends green. Without a comment, a skipped review looks like a review that
   # has not arrived yet. This job says so on the PR.
   #
   # It is a separate job so that its write token never reaches the agent: the
