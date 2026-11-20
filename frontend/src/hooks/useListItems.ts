@@ -462,16 +462,19 @@ export function useListItems(
   )
 
   const renameItem = useCallback(
-    async (itemId: string, name: string) => {
+    // A brand comes along when the new name is another product's: name +
+    // brand is the product key, so both move together.
+    async (itemId: string, name: string, brand?: string | null) => {
       if (!isOnline()) {
         showToast(OFFLINE_TOAST)
         return
       }
+      const patch = brand === undefined ? { name } : { name, brand }
       const snapshot = itemsRef.current
-      setItems(snapshot.map((i) => (i.id === itemId ? { ...i, name } : i)))
+      setItems(snapshot.map((i) => (i.id === itemId ? { ...i, ...patch } : i)))
       markWritten(itemId)
       try {
-        await updateItem(getToken, listId, itemId, { name })
+        await updateItem(getToken, listId, itemId, patch)
       } catch (err) {
         setItems(snapshot)
         showToast('No se pudo renombrar el producto')

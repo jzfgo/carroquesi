@@ -1,6 +1,7 @@
 import { ChevronRight, RotateCcw, Tag } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { getPriceHistory } from '../lib/api'
+import { foldText } from '../lib/foldText'
 import { formatAmount, formatUnitPrice, savedPercent } from '../lib/formatPrice'
 import {
   type PackFormat,
@@ -26,8 +27,11 @@ interface Props {
   displayStore: (raw: string) => string
   getToken: () => Promise<string>
   listId: string
+  /** Every line of the list: the rename editor suggests their products. */
+  listItems: ListItem[]
   purchased?: boolean
-  onRename: (newName: string) => void
+  /** A brand comes along when a suggestion names another product. */
+  onRename: (newName: string, brand?: string | null) => void
   onEditField: (field: TagField | 'stores') => void
   /** Saves a format typed by hand; null removes it. */
   onSetPack: (pack: PackFormat | null) => void
@@ -204,6 +208,39 @@ function ProductField({
   return <div className="ficha__field">{body}</div>
 }
 
+interface Product {
+  name: string
+  brand: string | null
+}
+
+const productKey = (p: Product) =>
+  `${foldText(p.name.trim())}\u0000${foldText((p.brand ?? '').trim())}`
+
+/**
+ * The products the list already names whose name holds the typed text, one
+ * per name + brand, never the line's own. A rename that lands on one of them
+ * joins its price history instead of starting a third spelling.
+ */
+function renameSuggestions(
+  lines: ListItem[],
+  self: ListItem,
+  typed: string,
+): Product[] {
+  const needle = foldText(typed.trim())
+  if (!needle) return []
+  const seen = new Set([productKey(self)])
+  const found: Product[] = []
+  for (const line of lines) {
+    const key = productKey(line)
+    if (seen.has(key)) continue
+    seen.add(key)
+    if (foldText(line.name).includes(needle)) {
+      found.push({ name: line.name, brand: line.brand })
+    }
+  }
+  return found.slice(0, 5)
+}
+
 /**
  * The product ficha: one sheet, four blocks — what it costs, where and at what
  * price, what it is, and where it came from — plus a footer to buy it again or
@@ -217,6 +254,7 @@ export function ItemFichaSheet({
   displayStore,
   getToken,
   listId,
+  listItems,
   purchased,
   onRename,
   onEditField,
@@ -230,6 +268,13 @@ export function ItemFichaSheet({
   const [renameValue, setRenameValue] = useState(item.name)
   const [entries, setEntries] = useState<PriceEntry[]>([])
   const trimmed = renameValue.trim()
+  const suggestions = useMemo(
+    () =>
+      subState === 'rename'
+        ? renameSuggestions(listItems, item, renameValue)
+        : [],
+    [subState, listItems, item, renameValue],
+  )
   // undefined while a field of the format block cannot be read.
   const [draftPack, setDraftPack] = useState<PackFormat | null | undefined>(
     item.pack ?? null,
@@ -308,20 +353,18 @@ export function ItemFichaSheet({
             <ProductField
               label="Nombre"
               value={item.name}
-              onEdit={!purchased ? () => setSubState('rename') : undefined}
+              onEdit={() => setSubState('rename')}
             />
             <ProductField
               label="Marca"
               value={item.brand ?? '—'}
-              onEdit={!purchased ? () => onEditField('brand') : undefined}
+              onEdit={() => onEditField('brand')}
             />
             <ProductField
               label="Cantidad"
               value={item.quantity ?? '—'}
-              onEdit={!purchased ? () => onEditField('quantity') : undefined}
+              onEdit={() => onEditField('quantity')}
             />
-            {/* The only «Producto» row a closed purchase can still change:
-                a format is an attribute of the line, not of its price. */}
             {hasFormat && (
               <ProductField
                 label="Formato"
@@ -335,7 +378,7 @@ export function ItemFichaSheet({
             <ProductField
               label="Tiendas"
               value={storeNames.length > 0 ? storeNames.join(', ') : '—'}
-              onEdit={!purchased ? () => onEditField('stores') : undefined}
+              onEdit={() => onEditField('stores')}
             />
             <ProductField label="Código" value={item.ean ?? '—'} mono />
           </div>
@@ -395,6 +438,33 @@ export function ItemFichaSheet({
               Guardar
             </button>
           </div>
+          {/* Name + brand is the product key: a bought line takes its
+              prices along to whatever product it is renamed to. */}
+          {purchased && (
+            <p className="ficha__rename-note">
+              Sus precios pasan al historial de precios del nuevo nombre.
+            </p>
+          )}
+          {suggestions.length > 0 && (
+            <ul
+              className="ficha__suggestions"
+              aria-label="Productos de la lista"
+            >
+              {suggestions.map((s) => (
+                <li key={productKey(s)}>
+                  <button
+                    className="ficha__suggestion"
+                    onClick={() => onRename(s.name, s.brand)}
+                  >
+                    <span>{s.name}</span>
+                    {s.brand && (
+                      <span className="ficha__suggestion-brand">{s.brand}</span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <button
             className="ficha__cancel-link"
             onClick={() => setSubState('main')}

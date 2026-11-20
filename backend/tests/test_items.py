@@ -989,3 +989,64 @@ def test_unpurchase_grace_includes_its_last_instant(
 
     response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
     assert response.status_code == 200
+
+
+def test_a_correction_to_a_purchased_line_does_not_stamp_the_write(
+    client: TestClient, session: Session
+):
+    """Fixing the name, brand, quantity or stores of a bought line describes
+    the product, not the purchase, so it must not reopen the un-purchase grace
+    window."""
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    url = f"/lists/{lst['id']}/items/{item['id']}"
+    client.patch(url, json={"purchased": True})
+    aged = _aged(session, item["id"], timedelta(days=1))
+
+    response = client.patch(
+        url,
+        json={
+            "name": "Leche entera",
+            "brand": "Pascual",
+            "quantity": "2",
+            "stores": ["Dia"],
+            "pack": {"count": 6, "content": 1, "unit": "l"},
+            "ean": "8400000000002",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["name"], body["brand"], body["quantity"], body["stores"]) == (
+        "Leche entera",
+        "Pascual",
+        "2",
+        ["Dia"],
+    )
+    assert _updated_at(session, item["id"]) == aged
+
+
+def test_a_purchase_with_a_correction_still_stamps_the_write(client: TestClient, session: Session):
+    """Marking a line bought is a write to the purchase, even when the same
+    request fixes its name."""
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    aged = _aged(session, item["id"], timedelta(days=1))
+
+    client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"purchased": True, "name": "Leche entera"},
+    )
+    assert _updated_at(session, item["id"]) > aged
+
+
+def test_renaming_a_purchased_line_keeps_a_typed_format(client: TestClient):
+    """A name carrying a format never replaces the one typed by hand."""
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Agua"}).json()
+    url = f"/lists/{lst['id']}/items/{item['id']}"
+    client.patch(url, json={"pack": {"count": 6, "content": 1.5, "unit": "l"}})
+    client.patch(url, json={"purchased": True})
+
+    renamed = client.patch(url, json={"name": "Agua 8x1L"}).json()
+    assert renamed["name"] == "Agua 8x1L"
+    assert renamed["pack"]["count"] == 6

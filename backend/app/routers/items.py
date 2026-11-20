@@ -34,6 +34,8 @@ router = APIRouter(prefix="/lists/{list_id}/items", tags=["items"])
 # it is made. A record written moments ago can still be reverted: the user
 # is undoing their own fresh write, not rewriting historical spend.
 UNPURCHASE_GRACE = timedelta(minutes=15)
+_FORMAT_FIELDS = frozenset({"pack", "ean"})
+_LINE_FIELDS = _FORMAT_FIELDS | {"name", "brand", "quantity", "stores"}
 
 
 def _bump(lst: List, session: Session) -> None:
@@ -178,9 +180,11 @@ def update_item(
     was_purchased = item.purchased_at is not None
     data = body.model_dump(exclude_unset=True)
     purchased = data.pop("purchased", None)
-    # Only a format correction: allowed on a closed purchase, and not a write
-    # to the purchase, so it must not reopen the un-purchase grace window.
-    format_only = bool(data) and purchased is None and data.keys() <= {"pack", "ean"}
+    # A correction describes the product, not the purchase, so it must not
+    # reopen the un-purchase grace window. A format is never a write; the
+    # other fields are one only while the line is still pending.
+    corrected = _LINE_FIELDS if was_purchased else _FORMAT_FIELDS
+    correction_only = bool(data) and purchased is None and data.keys() <= corrected
     # A repeat purchase (Siri, a retried request) changes nothing. Stamping it
     # would reopen the un-purchase grace window on a closed trip.
     repeat_purchase = purchased is True and was_purchased and not data
@@ -217,7 +221,7 @@ def update_item(
         item.purchased_at = None
         emptied_trip_id, item.purchase_id = item.purchase_id, None
         trips.prune_if_empty(session, emptied_trip_id)
-    if not format_only and not repeat_purchase:
+    if not correction_only and not repeat_purchase:
         item.updated_at = datetime.now(UTC)
     session.add(item)
     _bump(lst, session)

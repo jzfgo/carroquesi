@@ -438,6 +438,41 @@
   cursor: default;
 }
 
+.ficha__rename-note {
+  margin: 0;
+  padding: 0 20px 8px;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+}
+
+.ficha__suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 8px;
+}
+
+.ficha__suggestion {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  color: var(--ink-0);
+  font-family: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ficha__suggestion-brand {
+  color: var(--ink-2);
+  font-size: 0.85rem;
+}
+
 .ficha__cancel-link {
   background: none;
   border: none;

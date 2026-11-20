@@ -500,7 +500,11 @@ describe('ListScreen', () => {
     fireEvent.change(input, { target: { value: 'Manzanas Rojas' } })
     fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
 
-    expect(renameItemMock).toHaveBeenCalledWith('i1', 'Manzanas Rojas')
+    expect(renameItemMock).toHaveBeenCalledWith(
+      'i1',
+      'Manzanas Rojas',
+      undefined,
+    )
   })
 
   it('opens the product ficha when the row is tapped and handles delete', async () => {

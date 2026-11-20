@@ -1321,9 +1321,10 @@ export function ListScreen({
               displayStore={displayStore}
               getToken={getToken}
               listId={listId}
+              listItems={items}
               purchased={activeItem.purchased}
-              onRename={(name) => {
-                void renameItem(activeItemId, name)
+              onRename={(name, brand) => {
+                void renameItem(activeItemId, name, brand)
                 setActiveItemId(null)
               }}
               onEditField={(field) => {
