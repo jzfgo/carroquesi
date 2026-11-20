@@ -417,7 +417,9 @@ export function useListItems(
       }
       const snapshot = itemsRef.current
       const current = snapshot.find((i) => i.id === itemId)
-      const changes: Partial<ListItem> = { [field]: value }
+      const changes: Partial<Pick<ListItem, TagField | 'stores'>> = {
+        [field]: value,
+      }
       if (field === 'brand' && current) {
         const stores = withOwnBrandStore(value, current.stores)
         if (stores !== current.stores) changes.stores = stores
@@ -509,6 +511,38 @@ export function useListItems(
         setItems(snapshot)
         showToast('No se pudo guardar el formato')
         suspectListGone(err)
+      } finally {
+        markWritten(itemId)
+      }
+    },
+    [getToken, listId, showToast, markWritten, suspectListGone],
+  )
+
+  // A correction from the item sheet's catalogue: a code with what it
+  // fills, or a catalogue format taken or put back. The server may fill more
+  // (the format a new code names), so its answer replaces the paint.
+  const correctItem = useCallback(
+    async (itemId: string, patch: Parameters<typeof updateItem>[3]) => {
+      if (!isOnline()) {
+        showToast(OFFLINE_TOAST)
+        return false
+      }
+      const snapshot = itemsRef.current
+      setItems(
+        snapshot.map((i) =>
+          i.id === itemId ? ({ ...i, ...patch } as ListItem) : i,
+        ),
+      )
+      markWritten(itemId)
+      try {
+        const saved = await updateItem(getToken, listId, itemId, patch)
+        setItems((prev) => prev.map((i) => (i.id === itemId ? saved : i)))
+        return true
+      } catch (err) {
+        setItems(snapshot)
+        showToast('No se pudo actualizar el producto')
+        suspectListGone(err)
+        return false
       } finally {
         markWritten(itemId)
       }
@@ -630,6 +664,7 @@ export function useListItems(
     updateStores,
     renameItem,
     updatePack,
+    correctItem,
     removeItem,
     savePrice,
     retry: fetchAll,

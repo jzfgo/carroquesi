@@ -9,6 +9,7 @@ from app.core.http import HEADERS as _OFF_HEADERS
 from app.db.models import BarcodeCache
 from app.dependencies import CurrentSession, CurrentUser
 from app.schemas.barcode import BarcodeRead
+from app.services.pack_from_name import format_from_off
 from app.services.store_key import store_key
 
 router = APIRouter(tags=["barcode"])
@@ -42,6 +43,7 @@ def _to_read(entry: BarcodeCache) -> BarcodeRead:
         name=entry.name,
         brand=entry.brand,
         stores=_parse_stores(entry.stores),
+        pack=format_from_off(entry.quantity),
     )
 
 

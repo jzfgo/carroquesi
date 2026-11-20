@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Escribir o corregir el código a mano</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cqs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:#1a3fa0}a:hover{color:#2c56c1}</style>
+</helmet>
+<div class="bd" style="height: 520px;">
+  <div class="sh" style="flex: 1;">
+    <div class="grab"></div>
+    <div style="padding: 0 20px 16px; border-bottom: 1px solid #b4bac4;">
+      <h1 class="t" style="font-size: 24px;">Leche semidesnatada</h1>
+      <div class="sub" style="margin-top: 3px;">Código de barras</div>
+    </div>
+    <div style="padding: 18px 20px 0;">
+      <label class="lbl" for="ean">Código</label>
+      <div style="display: flex; gap: 8px;">
+        <div class="fld new" style="flex: 1;"><input id="ean" inputmode="numeric" value="8480000118325"></div>
+        <button class="save">Guardar</button>
+      </div>
+      <p class="help">Las 8 o 13 cifras que hay bajo las barras. Al guardarlo, se rellena lo que falte, igual que al escanearlo.</p>
+    </div>
+    <div style="padding: 12px 20px 0;">
+      <button class="lnk">Cancelar</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":402,"height":520}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

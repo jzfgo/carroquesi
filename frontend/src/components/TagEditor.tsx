@@ -2,8 +2,7 @@ import { Hash, Tag } from 'lucide-react'
 import { useState } from 'react'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem, TagField } from '../types'
-import { Sheet } from './Sheet'
-import './TagEditSheet.css'
+import './TagEditor.css'
 
 const TAG_META: Record<TagField, { icon: React.ReactNode; label: string }> = {
   brand: { icon: <Tag size={14} />, label: 'Marca' },
@@ -15,10 +14,10 @@ interface Props {
   field: TagField
   items: ListItem[]
   onSave: (value: string | null) => void
-  onClose: () => void
 }
 
-export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
+/** Edits a line's brand or quantity: a sub-state of the item sheet. */
+export function TagEditor({ item, field, items, onSave }: Props) {
   const tagValues = {
     brand: item.brand,
     quantity: item.quantity,
@@ -43,17 +42,17 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
   }
 
   return (
-    <Sheet className="tag-edit-sheet" label={label} onClose={onClose}>
-      <div className="tag-edit-sheet__header">
+    <div className="tag-editor">
+      <div className="tag-editor__header">
         <span>
           {icon} {label}
         </span>
-        <span className="tag-edit-sheet__item-name"> · {item.name}</span>
+        <span className="tag-editor__item-name"> · {item.name}</span>
       </div>
 
-      <div className="tag-edit-sheet__input-row">
+      <div className="tag-editor__input-row">
         <input
-          className="tag-edit-sheet__input"
+          className="tag-editor__input"
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -62,7 +61,7 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
           aria-label={label}
         />
         <button
-          className="tag-edit-sheet__save"
+          className="tag-editor__save"
           onClick={handleSave}
           aria-label="Guardar"
         >
@@ -71,11 +70,11 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
       </div>
 
       {suggestions.length > 0 && (
-        <div className="tag-edit-sheet__suggestions">
+        <div className="tag-editor__suggestions">
           {suggestions.map((s) => (
             <button
               key={s}
-              className="tag-edit-sheet__suggestion"
+              className="tag-editor__suggestion"
               onClick={() => setInput(s)}
             >
               {s}
@@ -86,13 +85,13 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
 
       {currentValue !== null && (
         <button
-          className="tag-edit-sheet__remove"
+          className="tag-editor__remove"
           onClick={() => onSave(null)}
           aria-label={`Eliminar ${label}`}
         >
           Eliminar {label}
         </button>
       )}
-    </Sheet>
+    </div>
   )
 }

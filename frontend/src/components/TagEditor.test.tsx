@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { ListItem } from '../types'
-import { TagEditSheet } from './TagEditSheet'
+import { TagEditor } from './TagEditor'
 
 const BASE_ITEM: ListItem = {
   id: 'i1',
@@ -30,12 +30,11 @@ const OTHER_ITEMS: ListItem[] = [
 
 test('pre-fills input with current field value', () => {
   render(
-    <TagEditSheet
+    <TagEditor
       item={BASE_ITEM}
       field="brand"
       items={[BASE_ITEM]}
       onSave={() => {}}
-      onClose={() => {}}
     />,
   )
   expect(screen.getByRole('textbox')).toHaveValue('Hacendado')
@@ -44,13 +43,7 @@ test('pre-fills input with current field value', () => {
 test('shows empty input when field value is null', () => {
   const item = { ...BASE_ITEM, brand: null }
   render(
-    <TagEditSheet
-      item={item}
-      field="brand"
-      items={[item]}
-      onSave={() => {}}
-      onClose={() => {}}
-    />,
+    <TagEditor item={item} field="brand" items={[item]} onSave={() => {}} />,
   )
   expect(screen.getByRole('textbox')).toHaveValue('')
 })
@@ -58,12 +51,11 @@ test('shows empty input when field value is null', () => {
 test('Save button calls onSave with trimmed value', () => {
   const onSave = vi.fn()
   render(
-    <TagEditSheet
+    <TagEditor
       item={BASE_ITEM}
       field="brand"
       items={[BASE_ITEM]}
       onSave={onSave}
-      onClose={() => {}}
     />,
   )
   fireEvent.change(screen.getByRole('textbox'), {
@@ -76,12 +68,11 @@ test('Save button calls onSave with trimmed value', () => {
 test('clearing input and saving calls onSave(null)', () => {
   const onSave = vi.fn()
   render(
-    <TagEditSheet
+    <TagEditor
       item={BASE_ITEM}
       field="brand"
       items={[BASE_ITEM]}
       onSave={onSave}
-      onClose={() => {}}
     />,
   )
   fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } })
@@ -92,42 +83,25 @@ test('clearing input and saving calls onSave(null)', () => {
 test('Enter key triggers save', () => {
   const onSave = vi.fn()
   render(
-    <TagEditSheet
+    <TagEditor
       item={BASE_ITEM}
       field="brand"
       items={[BASE_ITEM]}
       onSave={onSave}
-      onClose={() => {}}
     />,
   )
   fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
   expect(onSave).toHaveBeenCalledWith('Hacendado')
 })
 
-test('ESC key calls onClose', () => {
-  const onClose = vi.fn()
-  render(
-    <TagEditSheet
-      item={BASE_ITEM}
-      field="brand"
-      items={[BASE_ITEM]}
-      onSave={() => {}}
-      onClose={onClose}
-    />,
-  )
-  fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' })
-  expect(onClose).toHaveBeenCalled()
-})
-
 test('Remove button calls onSave(null)', () => {
   const onSave = vi.fn()
   render(
-    <TagEditSheet
+    <TagEditor
       item={BASE_ITEM}
       field="brand"
       items={[BASE_ITEM]}
       onSave={onSave}
-      onClose={() => {}}
     />,
   )
   fireEvent.click(screen.getByRole('button', { name: /eliminar/i }))
@@ -137,13 +111,7 @@ test('Remove button calls onSave(null)', () => {
 test('Remove button is hidden when field value is null', () => {
   const item = { ...BASE_ITEM, brand: null }
   render(
-    <TagEditSheet
-      item={item}
-      field="brand"
-      items={[item]}
-      onSave={() => {}}
-      onClose={() => {}}
-    />,
+    <TagEditor item={item} field="brand" items={[item]} onSave={() => {}} />,
   )
   expect(
     screen.queryByRole('button', { name: /eliminar/i }),
@@ -152,12 +120,11 @@ test('Remove button is hidden when field value is null', () => {
 
 test('shows filtered suggestions for brand field', () => {
   render(
-    <TagEditSheet
+    <TagEditor
       item={BASE_ITEM}
       field="brand"
       items={OTHER_ITEMS}
       onSave={() => {}}
-      onClose={() => {}}
     />,
   )
   // typing 'D' should surface Danone
@@ -167,12 +134,11 @@ test('shows filtered suggestions for brand field', () => {
 
 test('clicking a suggestion fills the input', () => {
   render(
-    <TagEditSheet
+    <TagEditor
       item={BASE_ITEM}
       field="brand"
       items={OTHER_ITEMS}
       onSave={() => {}}
-      onClose={() => {}}
     />,
   )
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'D' } })
@@ -180,45 +146,13 @@ test('clicking a suggestion fills the input', () => {
   expect(screen.getByRole('textbox')).toHaveValue('Danone')
 })
 
-test('ESC calls onClose even when input is not focused', () => {
-  const onClose = vi.fn()
-  render(
-    <TagEditSheet
-      item={BASE_ITEM}
-      field="brand"
-      items={[BASE_ITEM]}
-      onSave={() => {}}
-      onClose={onClose}
-    />,
-  )
-  screen.getByRole('textbox').blur()
-  fireEvent.keyDown(document, { key: 'Escape' })
-  expect(onClose).toHaveBeenCalled()
-})
-
-test('tapping the scrim calls onClose', () => {
-  const onClose = vi.fn()
-  render(
-    <TagEditSheet
-      item={BASE_ITEM}
-      field="brand"
-      items={[BASE_ITEM]}
-      onSave={() => {}}
-      onClose={onClose}
-    />,
-  )
-  fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
-  expect(onClose).toHaveBeenCalled()
-})
-
 test('does not show suggestions for quantity field', () => {
   render(
-    <TagEditSheet
+    <TagEditor
       item={BASE_ITEM}
       field="quantity"
       items={OTHER_ITEMS}
       onSave={() => {}}
-      onClose={() => {}}
     />,
   )
   // suggestions row should not appear even with matching items

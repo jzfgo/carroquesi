@@ -34,7 +34,7 @@ router = APIRouter(prefix="/lists/{list_id}/items", tags=["items"])
 # it is made. A record written moments ago can still be reverted: the user
 # is undoing their own fresh write, not rewriting historical spend.
 UNPURCHASE_GRACE = timedelta(minutes=15)
-_FORMAT_FIELDS = frozenset({"pack", "ean"})
+_FORMAT_FIELDS = frozenset({"pack", "pack_source", "ean"})
 _LINE_FIELDS = _FORMAT_FIELDS | {"name", "brand", "quantity", "stores"}
 
 
@@ -188,13 +188,22 @@ def update_item(
     # A repeat purchase (Siri, a retried request) changes nothing. Stamping it
     # would reopen the un-purchase grace window on a closed trip.
     repeat_purchase = purchased is True and was_purchased and not data
+    pack_source = data.pop("pack_source", None)
     if "pack" in data:
         data.pop("pack")
         # Whole, not exclude_unset: a field left out of the format is a default,
         # not "keep". A scan in this request sets the EAN after it is cleared.
         item.change_pack(body.pack.model_dump() if body.pack else None)
+        if pack_source is not None and item.pack is not None:
+            item.pack_source = pack_source
+    new_ean = "ean" in data and data["ean"] is not None and data["ean"] != item.ean
     for field, value in data.items():
         setattr(item, field, value)
+    if new_ean:
+        # The same rule as a new line: the catalogue fills only a line with
+        # no format.
+        cached = session.exec(select(BarcodeCache).where(BarcodeCache.ean == item.ean)).first()
+        fill_from_off(item, cached.quantity if cached else None)
     if "name" in data and "pack" not in body.model_fields_set:
         fill_from_name(item)
     if data.get("stores"):

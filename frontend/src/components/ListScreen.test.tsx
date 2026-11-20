@@ -58,6 +58,7 @@ const { mockNewItem, mockScannedProduct } = vi.hoisted(() => ({
     name: 'Cacahuetes dulces',
     brand: 'Hacendado',
     stores: [],
+    pack: null,
   },
 }))
 
@@ -193,6 +194,7 @@ const emptyHookResult = {
   updateStores: vi.fn(),
   renameItem: vi.fn(),
   updatePack: vi.fn(),
+  correctItem: vi.fn(async () => true),
   removeItem: vi.fn(),
   savePrice: vi.fn(),
   retry: vi.fn(),
@@ -351,7 +353,7 @@ describe('ListScreen', () => {
     vi.useRealTimers()
   })
 
-  it('opens TagEditSheet via row tap → Marca and calls updateTag on save', async () => {
+  it('opens the brand editor inside the ficha → Marca and calls updateTag on save', async () => {
     const updateTagMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -364,11 +366,11 @@ describe('ListScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
     fireEvent.click(screen.getByRole('button', { name: /marca/i }))
 
-    expect(document.querySelector('.tag-edit-sheet')).toBeInTheDocument()
+    expect(document.querySelector('.tag-editor')).toBeInTheDocument()
 
-    const input = document.querySelector('.tag-edit-sheet__input')!
+    const input = document.querySelector('.tag-editor__input')!
     fireEvent.change(input, { target: { value: 'Danone' } })
-    fireEvent.click(document.querySelector('.tag-edit-sheet__save')!)
+    fireEvent.click(document.querySelector('.tag-editor__save')!)
 
     expect(updateTagMock).toHaveBeenCalledWith('i1', 'brand', 'Danone')
   })
@@ -403,7 +405,7 @@ describe('ListScreen', () => {
     )
   })
 
-  it('opens StoreEditSheet via row tap → Tiendas and calls updateStores on save', async () => {
+  it('opens the stores editor inside the ficha → Tiendas and calls updateStores on save', async () => {
     const updateStoresMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -416,7 +418,7 @@ describe('ListScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
     fireEvent.click(screen.getByRole('button', { name: /tiendas/i }))
 
-    expect(document.querySelector('.store-edit-sheet')).toBeInTheDocument()
+    expect(document.querySelector('.store-editor')).toBeInTheDocument()
 
     const input = screen.getByRole('textbox', { name: /nueva tienda/i })
     fireEvent.change(input, { target: { value: 'Carrefour' } })
@@ -541,6 +543,7 @@ describe('ListScreen', () => {
       name: 'Tomates',
       brand: 'Carrefour',
       stores: ['Carrefour'],
+      pack: null,
     })
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
@@ -582,6 +585,7 @@ describe('ListScreen', () => {
       name: 'Tomates',
       brand: 'Carrefour',
       stores: ['Carrefour'],
+      pack: null,
     })
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
@@ -617,6 +621,7 @@ describe('ListScreen', () => {
       name: 'Tomates',
       brand: 'Carrefour',
       stores: ['Carrefour'],
+      pack: null,
     })
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)

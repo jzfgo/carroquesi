@@ -454,3 +454,80 @@ def test_a_name_and_a_format_in_one_request_keep_the_typed_format(client: TestCl
     renamed = _patch(client, lst["id"], item["id"], body).json()
     assert renamed["name"] == "Agua 500ml"
     assert renamed["pack"] == SIX_BY_ONE_AND_A_HALF
+
+
+def test_a_code_added_later_brings_the_size_open_food_facts_gives(
+    client: TestClient, session: Session
+):
+    _cache(session, "6 x 1,5 l")
+    lst = _list(client)
+    item = _item(client, lst["id"])
+
+    scanned = _patch(client, lst["id"], item["id"], {"ean": "8410188011128"}).json()
+
+    assert scanned["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert scanned["pack_source"] == "off"
+
+
+def test_a_code_added_later_never_replaces_a_format(client: TestClient, session: Session):
+    _cache(session, "1 l")
+    lst = _list(client)
+    item = _item(client, lst["id"])
+    _patch(client, lst["id"], item["id"], {"pack": SIX_BY_ONE_AND_A_HALF})
+
+    scanned = _patch(client, lst["id"], item["id"], {"ean": "8410188011128"}).json()
+
+    assert scanned["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert scanned["pack_source"] == "manual"
+
+
+def test_resending_the_same_code_reads_no_size(client: TestClient, session: Session):
+    lst = _list(client)
+    item = _item(client, lst["id"], ean="8410188011128")
+    _cache(session, "1 l")
+
+    again = _patch(client, lst["id"], item["id"], {"ean": "8410188011128"}).json()
+
+    assert again["pack"] is None
+
+
+def test_a_catalogue_format_taken_from_a_suggestion_keeps_its_source(client: TestClient):
+    lst = _list(client)
+    item = _item(client, lst["id"], ean="8410188011128")
+    _patch(client, lst["id"], item["id"], {"pack": {"count": 1, "content": 1, "unit": "l"}})
+
+    body = {"pack": SIX_BY_ONE_AND_A_HALF, "pack_source": "off", "ean": "8410188011128"}
+    taken = _patch(client, lst["id"], item["id"], body).json()
+
+    assert taken["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert taken["pack_source"] == "off"
+    assert taken["ean"] == "8410188011128"
+
+
+def test_a_source_without_a_format_changes_nothing(client: TestClient):
+    lst = _list(client)
+    item = _item(client, lst["id"])
+    _patch(client, lst["id"], item["id"], {"pack": SIX_BY_ONE_AND_A_HALF})
+
+    after = _patch(client, lst["id"], item["id"], {"pack_source": "off"}).json()
+
+    assert after["pack_source"] == "manual"
+
+
+def test_a_scan_on_a_bought_line_does_not_reopen_the_unpurchase_grace(
+    client: TestClient, session: Session
+):
+    _cache(session, "1 l")
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Leche")
+    _patch(client, lst["id"], item["id"], {"purchased": True})
+    row = session.get_one(ListItem, item["id"])
+    long_ago = datetime.now(UTC) - timedelta(days=3)
+    row.updated_at = long_ago
+    session.add(row)
+    session.commit()
+
+    _patch(client, lst["id"], item["id"], {"ean": "8410188011128", "brand": "Hacendado"})
+
+    session.refresh(row)
+    assert row.updated_at.replace(tzinfo=UTC) == long_ago

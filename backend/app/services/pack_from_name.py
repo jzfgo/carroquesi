@@ -176,13 +176,19 @@ def fill_from_receipt(item: ListItem, pack: dict | None) -> None:
     item.pack_source = "receipt"
 
 
+def format_from_off(quantity: str | None) -> dict | None:
+    """The format an Open Food Facts package size names, when that size is
+    plain: «1,5 l», «6 x 33 cl». «℮» only says the size is an average, so
+    it is dropped first."""
+    return format_in_quantity((quantity or "").replace("℮", ""))
+
+
 def fill_from_off(item: ListItem, quantity: str | None) -> None:
     """Gives a line with no format the package size Open Food Facts gives
-    for its EAN, when that size is plain: «1,5 l», «6 x 33 cl». «℮» only
-    says the size is an average, so it is dropped first."""
+    for its EAN."""
     if item.pack is not None:
         return
-    pack = format_in_quantity((quantity or "").replace("℮", ""))
+    pack = format_from_off(quantity)
     if pack is None:
         return
     for column, value in pack_columns(pack).items():

@@ -1,25 +1,26 @@
-/* Panel chrome (position, scrim, grabber, slide) comes from the shared Sheet
-   primitive. This file styles only the content. */
-.tag-edit-sheet {
+/* A sub-state of the item sheet: the sheet draws the panel. */
+.tag-editor {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  padding-inline: 16px;
+  padding-inline: 20px;
 }
 
-.tag-edit-sheet__header {
+.tag-editor__header {
   font-size: 0.75rem;
   color: var(--ink-2);
 }
 
-.tag-edit-sheet__item-name {
+.tag-editor__item-name {
   font-style: italic;
 }
 
-.tag-edit-sheet__input-row {
+.tag-editor__input-row {
   display: flex;
   gap: 8px;
 }
 
-.tag-edit-sheet__input {
+.tag-editor__input {
   flex: 1;
   padding: 8px 12px;
   border: 1px solid var(--border);
@@ -29,12 +30,12 @@
   color: var(--ink-0);
 }
 
-.tag-edit-sheet__input:focus {
+.tag-editor__input:focus {
   outline: none;
   border-color: var(--accent);
 }
 
-.tag-edit-sheet__save {
+.tag-editor__save {
   padding: 8px 16px;
   background: var(--accent);
   color: var(--accent-fg);
@@ -45,13 +46,13 @@
   cursor: pointer;
 }
 
-.tag-edit-sheet__suggestions {
+.tag-editor__suggestions {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.tag-edit-sheet__suggestion {
+.tag-editor__suggestion {
   padding: 4px 10px;
   background: var(--paper-0);
   border: 1px solid var(--border);
@@ -60,7 +61,7 @@
   cursor: pointer;
 }
 
-.tag-edit-sheet__remove {
+.tag-editor__remove {
   align-self: flex-start;
   background: none;
   border: none;
