@@ -317,6 +317,53 @@ jobs:
           # read results through `actions: read`.
           claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch"'
 
+      # The action hides the agent's output, and the log keeps only a count of
+      # denied tool calls. That left skipped reviews undiagnosable (#520, #522,
+      # #524, #525). This step writes three things to the job summary, from
+      # the execution file the action leaves on the runner: the agent's final
+      # message, the tool calls it made, and the ones that were denied.
+      #
+      # Not the whole transcript, and not `show_full_output`. The repo is
+      # public, so the summary is public too, and file contents the agent
+      # read stay out of it. Each tool input is cut to 300 characters. The
+      # action only shows full output when `ACTIONS_STEP_DEBUG` is in the
+      # step's environment, so `gh run rerun --debug` does not reveal it.
+      #
+      # `always()`: a failed run is the one most worth reading. The file is
+      # missing only when the action stopped before Claude started.
+      - name: Summarise what the agent did
+        if: always() && steps.claude.outputs.execution_file != ''
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: |
+          [ -f "$EXECUTION_FILE" ] || { echo "No execution file at $EXECUTION_FILE."; exit 0; }
+          jq -r '
+            def cut: tostring | if length > 300 then .[:300] + "…" else . end;
+            def inline: cut | gsub("\n"; " ") | gsub("`"; "ʼ");
+            (map(select(.type == "result")) | last) as $r
+            | "## Claude run",
+              "",
+              "`\($r.subtype // "no result")`, is_error=\($r.is_error), \($r.num_turns) turns, \(($r.duration_ms // 0) / 1000 | floor) s, $\($r.total_cost_usd)",
+              "",
+              "### Final message",
+              "",
+              "```",
+              ($r.result // "(none)" | gsub("```"; "ʼʼʼ")),
+              "```",
+              "",
+              "### Tool calls",
+              "",
+              (map(select(.type == "assistant"))[]
+                | (if .parent_tool_use_id then "subagent" else "main" end) as $who
+                | .message.content[]? | select(.type == "tool_use")
+                | "- \($who) `\(.name)`: \(.input | inline)"),
+              "",
+              "### Permission denials",
+              "",
+              (($r.permission_denials // []) | if length == 0 then "None." else
+                (.[] | "- `\(.tool_name)`: \(.tool_input | inline)") end)
+          ' "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+
   # The plugin can stop before reviewing and post nothing, and the run still
   # ends green. Without a comment, a skipped review looks like a review that
   # has not arrived yet. This job says so on the PR.
@@ -337,6 +384,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           SINCE: ${{ needs.claude.outputs.started }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           # A failed lookup must fail the job, not read as zero comments.
           set -o pipefail
@@ -355,8 +403,9 @@ jobs:
             } | awk -F '\t' -v since="$SINCE" '$1 == "claude[bot]" && $2 >= since' | wc -l
           )
           [ "$count" -gt 0 ] && exit 0
-          gh pr comment "$PR" --body-file - <<'MSG'
-          Revisión automática omitida: el plugin `code-review` decidió que este PR no la necesita (cambio trivial o automático, o ya hay un comentario de Claude) y no publicó nada.
+          # Unquoted delimiter so $RUN_URL expands; the backticks are escaped.
+          gh pr comment "$PR" --body-file - <<MSG
+          Revisión automática omitida: el plugin \`code-review\` terminó sin publicar nada. El motivo está en el resumen del run: $RUN_URL
 
-          Si quieres una revisión, comenta `@claude /code-review:code-review`.
+          Si quieres una revisión, comenta \`@claude /code-review:code-review\`.
           MSG
