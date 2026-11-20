@@ -413,7 +413,7 @@ jobs:
           [ "$count" -gt 0 ] && exit 0
           # Unquoted delimiter so $RUN_URL expands; the backticks are escaped.
           gh pr comment "$PR" --body-file - <<MSG
-          Revisión automática omitida: el plugin \`code-review\` terminó sin publicar nada. El motivo está en el resumen del run: $RUN_URL
+          Revisión automática omitida: el plugin \`code-review\` terminó sin publicar nada. Lo que hizo el agente está en el resumen del run: $RUN_URL
 
           Si quieres una revisión, comenta \`@claude /code-review:code-review\`.
           MSG
