@@ -312,12 +312,15 @@ jobs:
           # `--disallowedTools ScheduleWakeup`: see the step's `env` below.
           #
           # The automatic review only reads and comments. On `pull_request`
-          # runs, `Bash` is denied too, which takes away the action's git and
-          # push wrapper (the only Bash this job has), and so are the edit
-          # tools that tag mode's `acceptEdits` would allow. A deny rule wins
-          # over the action's own allow list. An `@claude` run keeps them all,
-          # so it can still push a fix when asked.
-          claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch" --disallowedTools "${{ github.event_name == ''pull_request'' && ''ScheduleWakeup,Bash,Edit,MultiEdit,Write,NotebookEdit'' || ''ScheduleWakeup'' }}"'
+          # runs, the git write commands that tag mode allows (`add`,
+          # `commit`, `rm`) are denied, and so are the edit tools that its
+          # `acceptEdits` would allow. With no commit, the push wrapper has
+          # nothing to push. All of `Bash` is not denied: that would also block
+          # the read-only `git diff` and `git log`, and tag mode has no other
+          # way to see the diff. A deny rule wins over the action's own allow
+          # list. An `@claude` run keeps them all, so it can still push a fix
+          # when asked.
+          claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch" --disallowedTools "${{ github.event_name == ''pull_request'' && ''ScheduleWakeup,Bash(git add:*),Bash(git commit:*),Bash(git rm:*),Edit,MultiEdit,Write,NotebookEdit'' || ''ScheduleWakeup'' }}"'
         # Subagents must run in the foreground. Launched in the background,
         # the main agent ends its turn "waiting on them", the headless
         # session exits there, and they die before posting: run
