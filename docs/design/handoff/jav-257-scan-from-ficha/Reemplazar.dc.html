@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Ya tenía otro código</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cqs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:#1a3fa0}a:hover{color:#2c56c1}</style>
+</helmet>
+<div class="bd scrim" style="height: 760px;">
+  <div class="sh">
+    <div class="grab"></div>
+    <div style="padding: 0 20px; display: flex; flex-direction: column; gap: 6px;">
+      <h1 class="t">¿Cambiar el código?</h1>
+      <p style="margin: 0; font: 400 14px/1.45 'Geist', system-ui, sans-serif; color: #353742;">Leche semidesnatada ya tiene otro código. Si has escaneado otro formato, quizá sea mejor añadirlo como otro producto.</p>
+    </div>
+    <div style="padding: 16px 20px 0;">
+      <div class="cmp">
+        <span class="pf-l">Tiene</span><span class="mono" style="font: 500 14px/1.3 'JetBrains Mono', monospace; color: #6a6d7a;">8480000118318</span>
+        <span class="pf-l">Escaneado</span><span class="mono" style="font: 600 14px/1.3 'JetBrains Mono', monospace; color: #15161b;">8480000118325</span>
+      </div>
+      <p class="help">Lo que escribiste tú no cambia. Solo se rellenan los datos que falten.</p>
+    </div>
+    <div style="padding: 18px 20px 0; display: flex; gap: 8px;">
+      <button class="btn2" style="flex: 1;">Dejar el que tiene</button>
+      <button class="btn" style="flex: 1;">Cambiar el código</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":402,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

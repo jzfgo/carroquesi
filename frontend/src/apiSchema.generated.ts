@@ -1075,6 +1075,7 @@ export interface components {
             ean: string;
             /** Name */
             name: string;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Stores */
             stores: string[];
         };
@@ -1248,6 +1249,8 @@ export interface components {
             /** Name */
             name: string;
             pack?: components["schemas"]["PackFormat"] | null;
+            /** Pack Source */
+            pack_source?: ("manual" | "name" | "receipt" | "off" | "copied") | null;
             /** Price */
             price: number | null;
             /** Price Before */
@@ -1292,6 +1295,8 @@ export interface components {
             /** Name */
             name?: string | null;
             pack?: components["schemas"]["PackFormat"] | null;
+            /** Pack Source */
+            pack_source?: ("manual" | "name" | "receipt" | "off" | "copied") | null;
             /** Purchased */
             purchased?: boolean | null;
             /** Purchased Quantity */

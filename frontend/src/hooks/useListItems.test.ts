@@ -1530,3 +1530,101 @@ describe('useListItems — updatePack', () => {
     expect(mockShowToast).toHaveBeenCalledWith('No se pudo guardar el formato')
   })
 })
+
+describe('useListItems — correctItem', () => {
+  const SIX = { count: 6, content: 1, unit: 'l' as const }
+
+  beforeEach(() => {
+    reportRequestOutcome(true)
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+  })
+
+  it('paints the patch, then the server answer that may fill more', async () => {
+    const saved: ListItem = {
+      ...item1,
+      ean: '8480000118325',
+      brand: 'Hacendado',
+      pack: SIX,
+      pack_source: 'off',
+    }
+    vi.mocked(api.updateItem).mockResolvedValue(saved as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    let ok: ListItem | null | undefined
+    await act(async () => {
+      ok = await result.current.correctItem('item-1', {
+        ean: '8480000118325',
+        brand: 'Hacendado',
+      })
+    })
+
+    expect(ok).toEqual(saved)
+    expect(api.updateItem).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { ean: '8480000118325', brand: 'Hacendado', stores: ['Mercadona'] },
+    )
+    expect(result.current.items[0]).toEqual(saved)
+  })
+
+  it('leaves stores alone when the patch fills no brand', async () => {
+    vi.mocked(api.updateItem).mockResolvedValue(item1 as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.correctItem('item-1', { ean: '8480000118325' })
+    })
+
+    expect(api.updateItem).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { ean: '8480000118325' },
+    )
+  })
+
+  it('reverts, says so and answers null on API failure', async () => {
+    vi.mocked(api.updateItem).mockRejectedValue(new Error('boom'))
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    let ok: ListItem | null | undefined
+    await act(async () => {
+      ok = await result.current.correctItem('item-1', { ean: '8480000118325' })
+    })
+
+    expect(ok).toBeNull()
+    expect(result.current.items[0].ean).toBe(item1.ean)
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo actualizar el producto',
+    )
+  })
+
+  it('refuses offline with a toast and touches nothing', async () => {
+    vi.mocked(api.updateItem).mockClear()
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    reportRequestOutcome(false)
+    let ok: ListItem | null | undefined
+    await act(async () => {
+      ok = await result.current.correctItem('item-1', { ean: '8480000118325' })
+    })
+
+    expect(ok).toBeNull()
+    expect(api.updateItem).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith('Sin conexión')
+    reportRequestOutcome(true)
+  })
+})

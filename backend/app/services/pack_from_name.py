@@ -176,13 +176,19 @@ def fill_from_receipt(item: ListItem, pack: dict | None) -> None:
     item.pack_source = "receipt"
 
 
+def format_from_off(quantity: str | None) -> dict | None:
+    """The format an Open Food Facts package size names, when that size is
+    plain: «1,5 l», «6 x 33 cl». «℮» only says the size is an average, so
+    it is dropped first."""
+    return format_in_quantity((quantity or "").replace("℮", ""))
+
+
 def fill_from_off(item: ListItem, quantity: str | None) -> None:
     """Gives a line with no format the package size Open Food Facts gives
-    for its EAN, when that size is plain: «1,5 l», «6 x 33 cl». «℮» only
-    says the size is an average, so it is dropped first."""
+    for its EAN."""
     if item.pack is not None:
         return
-    pack = format_in_quantity((quantity or "").replace("℮", ""))
+    pack = format_from_off(quantity)
     if pack is None:
         return
     for column, value in pack_columns(pack).items():
@@ -190,16 +196,52 @@ def fill_from_off(item: ListItem, quantity: str | None) -> None:
     item.pack_source = "off"
 
 
+def _is_one_weight(pack: dict) -> bool:
+    return pack["count"] == 1 and pack["unit"] in ("g", "kg")
+
+
 def fill_from_name(item: ListItem) -> None:
     """Gives a line with no format, or one guessed before, the format its
     name carries, and takes it out of the name. A format someone typed is
-    never replaced."""
+    never replaced.
+
+    A weighed line with a quantity keeps a weight in its name: the quantity
+    was typed apart, so it says how much to buy."""
     if item.pack is not None and item.pack_source not in ("name", "receipt", "off", "copied"):
         return
     found = format_in_name(item.name)
     if found is None:
         return
+    if item.price_per == "KILOGRAM" and item.quantity and _is_one_weight(found[1]):
+        return
     item.name, pack = found
     for column, value in pack_columns(pack).items():
         setattr(item, column, value)
     item.pack_source = "name"
+
+
+# Every source but a typed format. "quantity" is a size an old backfill
+# moved out of the quantity.
+_GUESSED = ("name", "receipt", "off", "copied", "quantity")
+
+
+def drop_format_when_weighed(item: ListItem) -> None:
+    """A line sold by weight has no format: what it weighs is decided at the
+    counter. So a guessed format leaves it. A typed one stays, hidden, in
+    case the line stops being weighed.
+
+    A size read in the name («Ternera 1kg») usually says how much to buy,
+    so it becomes the quantity when there is none. With a quantity, a weight
+    goes back to the name, as a weighed line typed that way keeps it."""
+    if item.price_per != "KILOGRAM" or item.pack_source not in _GUESSED:
+        return
+    pack = item.pack
+    if item.pack_source in ("name", "quantity") and pack and pack["count"] == 1 and pack["unit"]:
+        figure = f"{pack['content']:g}".replace(".", ",")
+        size = f"{figure} {pack['unit']}"
+        if not item.quantity:
+            item.quantity = size
+        elif item.pack_source == "name" and _is_one_weight(pack):
+            item.name = f"{item.name} {size}"
+    for column, value in pack_columns(None).items():
+        setattr(item, column, value)

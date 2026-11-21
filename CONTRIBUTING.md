@@ -71,7 +71,7 @@ chore: bump vite to 6.x
 
 Types `feat` and `fix` appear in the changelog. Types `chore`, `docs`, `test`, and `ci` are excluded.
 
-`CHANGELOG.md` is generated on `main` at release time, not on your branch — leave it alone in a PR. Because PRs are squash-merged, entries generated before the squash describe commits that will not exist afterwards, and regenerating from the collapsed history deletes entries already shipped. The release PR is the one exception: it is based on `main` and adds no `feat`/`fix` commits of its own, so it sees the same history `main` will.
+`CHANGELOG.md` is generated at release time, not on your branch — leave it alone in a PR. Because PRs are squash-merged, entries generated before the squash describe commits that will not exist afterwards. The release's version PR is the one exception: it starts at the tip of `develop` and adds no `feat`/`fix` commits of its own, so it sees the same history `develop` will.
 
 ### Before opening a PR
 
@@ -85,7 +85,7 @@ Make sure:
 
 - [ ] Lint and tests pass
 - [ ] Only intentional files are changed (no `pnpm-lock.yaml` platform churn)
-- [ ] `CHANGELOG.md` untouched (release PRs excepted)
+- [ ] `CHANGELOG.md` untouched (release version PRs excepted)
 
 ### Architecture Decision Records
 
@@ -95,7 +95,7 @@ When your PR introduces a new significant tradeoff, add or update an ADR. Edit i
 
 ### Alembic migrations
 
-If your change requires a database migration, create it **last** — after rebasing on `main` and just before opening the PR. Two branches with migrations in parallel cause version conflicts that require manual resolution.
+If your change requires a database migration, create it **last** — after rebasing on `develop` and just before opening the PR. Two branches with migrations in parallel cause version conflicts that require manual resolution.
 
 ```bash
 just backend migration "describe your change"

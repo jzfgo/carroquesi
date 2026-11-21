@@ -35,6 +35,14 @@ disagree, the frames here win.
   («6 × 1,5 L»): the bought row, the item sheet, the price history in €/L
   with mixed formats, and correcting the format in 10d/13b (2026-11-15). Its
   README restates the rules the frames encode.
+- `jav-257-scan-from-ficha/` — approved frames for adding or correcting a
+  line's barcode from the item sheet: scanning or typing it, filling empty
+  fields from Open Food Facts, and the catalogue's suggestions on fields that
+  already have a value (2026-11-20). Its README restates the rules, and one
+  change made after approval.
+- `jav-246-pending-format/` — approved frames for showing a line's pack
+  format on pending (30a) and in-cart (33a) rows, with the quantity column
+  unchanged (2026-11-21). Its README restates the rules the frames encode.
 - `jav-234-close-and-review/` — one set of shared parts for closing a trip
   (10b/10d) and reviewing a receipt (13a/13b) (2026-11-11). It replaces those
   frames' header, table head, rows, total, help text, save button and

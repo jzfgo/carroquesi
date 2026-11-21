@@ -1,29 +1,28 @@
-/* Panel chrome (position, scrim, grabber, slide) comes from the shared Sheet
-   primitive. This file styles only the content. */
-.store-edit-sheet {
-  padding-inline: 16px;
+/* A sub-state of the item sheet: the sheet draws the panel. */
+.store-editor {
+  padding-inline: 20px;
 }
 
-.store-edit-sheet__header {
+.store-editor__header {
   font-weight: 600;
   font-size: 16px;
   color: var(--ink-0);
   margin-bottom: 14px;
 }
 
-.store-edit-sheet__item-name {
+.store-editor__item-name {
   font-weight: 400;
   color: var(--ink-2);
 }
 
-.store-edit-sheet__chips {
+.store-editor__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 14px;
 }
 
-.store-edit-sheet__chip {
+.store-editor__chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -34,7 +33,7 @@
   font-size: 14px;
 }
 
-.store-edit-sheet__chip-remove {
+.store-editor__chip-remove {
   background: none;
   border: none;
   padding: 0 0 0 2px;
@@ -45,13 +44,13 @@
   opacity: 0.6;
 }
 
-.store-edit-sheet__input-row {
+.store-editor__input-row {
   display: flex;
   gap: 8px;
   margin-bottom: 10px;
 }
 
-.store-edit-sheet__input {
+.store-editor__input {
   flex: 1;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -62,11 +61,11 @@
   color: var(--ink-0);
 }
 
-.store-edit-sheet__input:focus {
+.store-editor__input:focus {
   border-color: var(--accent);
 }
 
-.store-edit-sheet__add {
+.store-editor__add {
   background: var(--accent);
   color: white;
   border: none;
@@ -76,13 +75,13 @@
   cursor: pointer;
 }
 
-.store-edit-sheet__suggestions {
+.store-editor__suggestions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.store-edit-sheet__suggestion {
+.store-editor__suggestion {
   background: var(--paper-1);
   border: 1px solid var(--border);
   border-radius: 10px;

@@ -153,14 +153,7 @@ export function AdjustProductSheet({
               <span className="adjust-suggest__q">
                 ¿Usar el último precio registrado en esta tienda?
               </span>
-              <button
-                type="button"
-                className="adjust-suggest__disc adjust-suggest__disc--yes"
-                onClick={confirmSuggested}
-                aria-label="Usar el precio sugerido"
-              >
-                <Check size={15} strokeWidth={2.4} aria-hidden />
-              </button>
+              {/* No on the left, yes on the right. */}
               <button
                 type="button"
                 className="adjust-suggest__disc adjust-suggest__disc--no"
@@ -168,6 +161,14 @@ export function AdjustProductSheet({
                 aria-label="No usar el precio sugerido"
               >
                 <X size={15} strokeWidth={2.4} aria-hidden />
+              </button>
+              <button
+                type="button"
+                className="adjust-suggest__disc adjust-suggest__disc--yes"
+                onClick={confirmSuggested}
+                aria-label="Usar el precio sugerido"
+              >
+                <Check size={15} strokeWidth={2.4} aria-hidden />
               </button>
             </div>
           ) : (

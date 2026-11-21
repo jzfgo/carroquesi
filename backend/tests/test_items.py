@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -225,9 +226,64 @@ def test_unpurchase_blocked_when_the_trip_closed_before_a_future_tear_off(
     assert response.status_code == 409
 
 
-def test_repeat_purchase_does_not_reopen_the_write_grace(client: TestClient, session: Session):
+@pytest.mark.parametrize(
+    ("bought_quantity", "extra"),
+    [
+        (None, {}),
+        (None, {"quantity": "2"}),
+        (None, {"purchased_quantity": None}),
+        ("3", {"purchased_quantity": "3"}),
+    ],
+    ids=[
+        "purchased-only",
+        "with-a-correction",
+        "same-purchased-quantity-unset",
+        "same-purchased-quantity",
+    ],
+)
+def test_repeat_purchase_does_not_reopen_the_write_grace(
+    client: TestClient, session: Session, bought_quantity: str | None, extra: dict
+):
     """A retried or Siri-sent purchase on a bought item is no change: it must
-    not stamp updated_at, or it would reopen the un-purchase grace window."""
+    not stamp updated_at, or it would reopen the un-purchase grace window.
+    A product correction sent along never stamps a bought line, and a bought
+    quantity resent with its current value changes nothing either."""
+    from app.db.models import ListItem
+    from app.routers.items import UNPURCHASE_GRACE
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread", "quantity": "2"}).json()
+    now = datetime.now(UTC)
+    _purchase_and_age(
+        client,
+        session,
+        lst,
+        item,
+        closed_at=now - timedelta(hours=1),
+        updated_ago=UNPURCHASE_GRACE + timedelta(minutes=1),
+    )
+    db_item = session.get_one(ListItem, item["id"])
+    session.refresh(db_item)
+    db_item.purchased_quantity = bought_quantity
+    session.add(db_item)
+    session.commit()
+    session.refresh(db_item)
+    aged_updated_at = db_item.updated_at
+
+    response = client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True, **extra}
+    )
+    assert response.status_code == 200
+    session.refresh(db_item)
+    assert db_item.updated_at == aged_updated_at
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 409
+
+
+def test_repeat_purchase_with_a_real_change_still_stamps(client: TestClient, session: Session):
+    """A repeat purchase that also changes the bought quantity is a real edit:
+    it stamps updated_at, which opens the grace window again."""
     from app.db.models import ListItem
     from app.routers.items import UNPURCHASE_GRACE
 
@@ -246,13 +302,17 @@ def test_repeat_purchase_does_not_reopen_the_write_grace(client: TestClient, ses
     session.refresh(db_item)
     aged_updated_at = db_item.updated_at
 
-    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    response = client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"purchased": True, "purchased_quantity": "3"},
+    )
     assert response.status_code == 200
+    assert response.json()["purchased_quantity"] == "3"
     session.refresh(db_item)
-    assert db_item.updated_at == aged_updated_at
+    assert db_item.updated_at > aged_updated_at
 
     response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
-    assert response.status_code == 409
+    assert response.status_code == 200
 
 
 def test_unpurchase_backdated_item_within_write_grace(client: TestClient, session: Session):
@@ -989,3 +1049,64 @@ def test_unpurchase_grace_includes_its_last_instant(
 
     response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
     assert response.status_code == 200
+
+
+def test_a_correction_to_a_purchased_line_does_not_stamp_the_write(
+    client: TestClient, session: Session
+):
+    """Fixing the name, brand, quantity or stores of a bought line describes
+    the product, not the purchase, so it must not reopen the un-purchase grace
+    window."""
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    url = f"/lists/{lst['id']}/items/{item['id']}"
+    client.patch(url, json={"purchased": True})
+    aged = _aged(session, item["id"], timedelta(days=1))
+
+    response = client.patch(
+        url,
+        json={
+            "name": "Leche entera",
+            "brand": "Pascual",
+            "quantity": "2",
+            "stores": ["Dia"],
+            "pack": {"count": 6, "content": 1, "unit": "l"},
+            "ean": "8400000000002",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["name"], body["brand"], body["quantity"], body["stores"]) == (
+        "Leche entera",
+        "Pascual",
+        "2",
+        ["Dia"],
+    )
+    assert _updated_at(session, item["id"]) == aged
+
+
+def test_a_purchase_with_a_correction_still_stamps_the_write(client: TestClient, session: Session):
+    """Marking a line bought is a write to the purchase, even when the same
+    request fixes its name."""
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    aged = _aged(session, item["id"], timedelta(days=1))
+
+    client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"purchased": True, "name": "Leche entera"},
+    )
+    assert _updated_at(session, item["id"]) > aged
+
+
+def test_renaming_a_purchased_line_keeps_a_typed_format(client: TestClient):
+    """A name carrying a format never replaces the one typed by hand."""
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Agua"}).json()
+    url = f"/lists/{lst['id']}/items/{item['id']}"
+    client.patch(url, json={"pack": {"count": 6, "content": 1.5, "unit": "l"}})
+    client.patch(url, json={"purchased": True})
+
+    renamed = client.patch(url, json={"name": "Agua 8x1L"}).json()
+    assert renamed["name"] == "Agua 8x1L"
+    assert renamed["pack"]["count"] == 6

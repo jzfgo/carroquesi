@@ -417,7 +417,9 @@ export function useListItems(
       }
       const snapshot = itemsRef.current
       const current = snapshot.find((i) => i.id === itemId)
-      const changes: Partial<ListItem> = { [field]: value }
+      const changes: Partial<Pick<ListItem, TagField | 'stores'>> = {
+        [field]: value,
+      }
       if (field === 'brand' && current) {
         const stores = withOwnBrandStore(value, current.stores)
         if (stores !== current.stores) changes.stores = stores
@@ -462,16 +464,19 @@ export function useListItems(
   )
 
   const renameItem = useCallback(
-    async (itemId: string, name: string) => {
+    // A brand comes along when the new name is another product's: name +
+    // brand is the product key, so both move together.
+    async (itemId: string, name: string, brand?: string | null) => {
       if (!isOnline()) {
         showToast(OFFLINE_TOAST)
         return
       }
+      const patch = brand === undefined ? { name } : { name, brand }
       const snapshot = itemsRef.current
-      setItems(snapshot.map((i) => (i.id === itemId ? { ...i, name } : i)))
+      setItems(snapshot.map((i) => (i.id === itemId ? { ...i, ...patch } : i)))
       markWritten(itemId)
       try {
-        await updateItem(getToken, listId, itemId, { name })
+        await updateItem(getToken, listId, itemId, patch)
       } catch (err) {
         setItems(snapshot)
         showToast('No se pudo renombrar el producto')
@@ -506,6 +511,44 @@ export function useListItems(
         setItems(snapshot)
         showToast('No se pudo guardar el formato')
         suspectListGone(err)
+      } finally {
+        markWritten(itemId)
+      }
+    },
+    [getToken, listId, showToast, markWritten, suspectListGone],
+  )
+
+  // A correction from the item sheet's catalogue: a code with what it
+  // fills, or a catalogue format taken or put back. The server may fill more
+  // (the format a new code names), so its answer replaces the paint and is
+  // returned: null when nothing was saved.
+  const correctItem = useCallback(
+    async (itemId: string, patch: Parameters<typeof updateItem>[3]) => {
+      if (!isOnline()) {
+        showToast(OFFLINE_TOAST)
+        return null
+      }
+      const snapshot = itemsRef.current
+      const current = snapshot.find((i) => i.id === itemId)
+      if (patch.brand && current) {
+        const stores = withOwnBrandStore(patch.brand, current.stores)
+        if (stores !== current.stores) patch = { ...patch, stores }
+      }
+      setItems(
+        snapshot.map((i) =>
+          i.id === itemId ? ({ ...i, ...patch } as ListItem) : i,
+        ),
+      )
+      markWritten(itemId)
+      try {
+        const saved = await updateItem(getToken, listId, itemId, patch)
+        setItems((prev) => prev.map((i) => (i.id === itemId ? saved : i)))
+        return saved
+      } catch (err) {
+        setItems(snapshot)
+        showToast('No se pudo actualizar el producto')
+        suspectListGone(err)
+        return null
       } finally {
         markWritten(itemId)
       }
@@ -627,6 +670,7 @@ export function useListItems(
     updateStores,
     renameItem,
     updatePack,
+    correctItem,
     removeItem,
     savePrice,
     retry: fetchAll,

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.29.0] — 2026-11-21
+
+### Added
+- Edita nombre, marca, cantidad y tiendas de una línea comprada (#525)
+
+- Escanea o escribe el código de una línea desde su ficha (#527)
+
+- Una línea al peso no tiene formato, venga de donde venga (#528)
+
+- **frontend:** Show pack format on pending and in-cart rows (JAV-259) (#532)
+
+
+### Fixed
+- **items:** A repeat purchase that resends current values stays a repeat (#530)
+
+
+---
 ## [0.28.2] — 2026-11-19
 
 ---

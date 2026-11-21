@@ -4,8 +4,7 @@ import { formatAmount } from '../lib/formatPrice'
 import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
 import { storeKey } from '../lib/storeKey'
 import type { ListItem } from '../types'
-import './LogPurchaseSheet.css'
-import { Sheet } from './Sheet'
+import './LogPurchaseForm.css'
 import { ADD_STORE, StoreSelect } from './StoreSelect'
 
 interface Props {
@@ -19,18 +18,16 @@ interface Props {
     store: string | null,
     purchasedQuantity: string | null,
   ) => void
-  onClose: () => void
   /** Resolves a raw store string to the list's canonical display name. */
   displayStore?: (raw: string) => string
 }
 
-export default function LogPurchaseSheet({
+export default function LogPurchaseForm({
   item,
   initialAmount,
   initialStore,
   initialPurchasedQuantity,
   onSave,
-  onClose,
   displayStore = (raw) => raw,
 }: Props) {
   // One offer per store: dedupe spelling variants by key and label with the
@@ -91,7 +88,7 @@ export default function LogPurchaseSheet({
   }
 
   return (
-    <Sheet className="lps" label="Registrar compra" onClose={onClose}>
+    <div className="lps">
       <div className="lps__title">
         <ShoppingCart size={18} /> Registrar compra
       </div>
@@ -177,6 +174,6 @@ export default function LogPurchaseSheet({
       >
         Guardar
       </button>
-    </Sheet>
+    </div>
   )
 }

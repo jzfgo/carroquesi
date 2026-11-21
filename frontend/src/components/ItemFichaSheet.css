@@ -7,6 +7,9 @@
 .item-ficha-sheet {
   --color-primary: var(--ink-1);
   --color-primary-bg: color-mix(in srgb, var(--ink-1) 10%, transparent);
+
+  /* A sub-state slides in from the side: no sideways scroll meanwhile. */
+  overflow-x: clip;
 }
 
 .ficha {
@@ -438,6 +441,41 @@
   cursor: default;
 }
 
+.ficha__rename-note {
+  margin: 0;
+  padding: 0 20px 8px;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+}
+
+.ficha__suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 8px;
+}
+
+.ficha__suggestion {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  color: var(--ink-0);
+  font-family: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ficha__suggestion-brand {
+  color: var(--ink-2);
+  font-size: 0.85rem;
+}
+
 .ficha__cancel-link {
   background: none;
   border: none;
@@ -541,4 +579,325 @@
 .phb__record-figure--left {
   font-weight: 400;
   color: var(--ink-2);
+}
+
+/* ── Sub-states slide ─────────────────────────────────────
+   A pane comes in from the side it leads to: a sub-state from the right,
+   the main view back from the left. The same timing as the sheet's own
+   entrance. */
+.ficha-pane {
+  animation: ficha-pane-in var(--dur-slow) var(--ease-spring);
+}
+
+.ficha-pane--back {
+  animation-name: ficha-pane-back;
+}
+
+@keyframes ficha-pane-in {
+  from {
+    transform: translateX(32px);
+    opacity: 0;
+  }
+}
+
+@keyframes ficha-pane-back {
+  from {
+    transform: translateX(-32px);
+    opacity: 0;
+  }
+}
+
+/* ── Product rows: empty values, sources, actions ───────── */
+.ficha__field-values {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ficha__field-value--empty {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.ficha__field-source {
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* The action sits over the row, just before the chevron; the value makes
+   room for it. */
+.ficha__field-wrap {
+  position: relative;
+}
+
+.ficha__field--with-action .ficha__field-values {
+  padding-right: 44px;
+}
+
+.ficha__icon-btn,
+.ficha__badge {
+  position: absolute;
+  top: 2px;
+  right: 34px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.ficha__badge > span {
+  position: relative;
+  z-index: 1;
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Opaque, so the ripple beneath never shows through. */
+  background: color-mix(in srgb, var(--accent) 16%, var(--paper-lift));
+  color: var(--accent);
+}
+
+.ficha__badge--on > span {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* A bulb that just appeared: a filled disc grows from under it and fades,
+   three times, then rests. */
+.ficha__badge--pulse::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: ficha-ripple 1.4s ease-out 3 both;
+  pointer-events: none;
+}
+
+@keyframes ficha-ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+
+  60%,
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* The catalogue's value, under the row, pointing at its bulb. */
+.ficha__tip {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 2px);
+  left: 116px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink-1) 88%, transparent);
+  backdrop-filter: blur(10px);
+  color: var(--paper-0);
+  box-shadow: var(--shadow-lg);
+}
+
+.ficha__tip-arrow {
+  position: absolute;
+  top: -6px;
+  right: 34px;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  transform: rotate(45deg);
+  border-radius: 2px 0 0;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.ficha__tip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ficha__tip-value {
+  font-size: 14.5px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.ficha__tip-src {
+  font-size: 11.5px;
+  line-height: 1.3;
+  opacity: 0.7;
+}
+
+/* No on the left, yes on the right: the discs of 10d. */
+.ficha__tip-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.ficha__disc {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  color: var(--accent-fg);
+  cursor: pointer;
+}
+
+/* A 44 px target around a 28 px disc. */
+.ficha__disc::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.ficha__disc--yes {
+  background: var(--verde-0);
+}
+
+.ficha__disc--no {
+  background: var(--tomate-0);
+}
+
+/* ── Código sub-states (frames 5 and 7) ─────────────────── */
+.ficha__header--plain {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ficha__lede {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-1);
+}
+
+.ficha__code {
+  padding: 0 20px;
+}
+
+.ficha__code-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.ficha__input-row--flush {
+  padding: 0;
+}
+
+.ficha__input--mono {
+  font-family: var(--font-mono);
+}
+
+.ficha__help {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.ficha__compare {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 6px 12px;
+  align-items: baseline;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper-0);
+}
+
+.ficha__compare dt {
+  font-size: 14px;
+  color: var(--ink-1);
+}
+
+.ficha__compare dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.ficha__compare-old {
+  color: var(--ink-2);
+}
+
+.ficha__compare-new {
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+.ficha__choice {
+  display: flex;
+  gap: 8px;
+  padding: 18px 20px 0;
+}
+
+.ficha__choice-no,
+.ficha__choice-yes {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ficha__choice-no {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--ink-1);
+}
+
+.ficha__choice-yes {
+  background: var(--accent);
+  border: none;
+  color: var(--accent-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ficha-pane {
+    animation: none;
+  }
+
+  .ficha__badge--pulse::before {
+    display: none;
+  }
 }

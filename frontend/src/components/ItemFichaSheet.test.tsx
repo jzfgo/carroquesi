@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
-import { getPriceHistory } from '../lib/api'
+import { ApiError, getBarcode, getPriceHistory } from '../lib/api'
 import type { ListItem, Member, PriceHistoryResponse } from '../types'
 import { ItemFichaSheet } from './ItemFichaSheet'
 
@@ -9,8 +9,16 @@ vi.mock('../lib/api', async (importOriginal) => {
   return {
     ...actual,
     getPriceHistory: vi.fn(() => Promise.resolve({ entries: [] })),
+    getBarcode: vi.fn(),
   }
 })
+
+// The camera reads whatever code the test hands it.
+vi.mock('./CameraScanner', () => ({
+  CameraScanner: ({ onDetect }: { onDetect: (raw: string) => void }) => (
+    <button onClick={() => onDetect('8480000118325')}>Leer (mock)</button>
+  ),
+}))
 
 const history: PriceHistoryResponse = {
   entries: [
@@ -65,28 +73,44 @@ const members = new Map<string, Member>([
 function renderSheet(
   over: Partial<ListItem> = {},
   props: Record<string, unknown> = {},
+  /** What the server fills beyond the patch, such as a format. */
+  filled: Partial<ListItem> = {},
 ) {
   const handlers = {
     onRename: vi.fn(),
-    onEditField: vi.fn(),
+    onSetTag: vi.fn(),
+    onSetStores: vi.fn(),
     onSetPack: vi.fn(),
+    onCorrect: vi.fn(async (patch: object): Promise<ListItem | null> => ({
+      ...item,
+      ...over,
+      ...patch,
+      ...filled,
+    })),
+    onToast: vi.fn(),
     onDelete: vi.fn(),
     onClone: vi.fn(),
     onClose: vi.fn(),
   }
-  render(
+  const getToken = vi.fn(() => Promise.resolve('t'))
+  const sheet = (line: Partial<ListItem>) => (
     <ItemFichaSheet
-      item={{ ...item, ...over }}
+      item={{ ...item, ...line }}
       members={members}
       displayStore={(raw) => raw}
-      getToken={vi.fn(() => Promise.resolve('t'))}
+      getToken={getToken}
       listId="l1"
-      purchased={over.purchased}
+      listItems={[]}
+      purchased={line.purchased}
       {...handlers}
       {...props}
-    />,
+    />
   )
-  return handlers
+  const { rerender } = render(sheet(over))
+  // What the parent does once a write lands: the sheet gets the new line.
+  const update = (next: Partial<ListItem>) =>
+    rerender(sheet({ ...over, ...next }))
+  return { ...handlers, update }
 }
 
 beforeEach(() => {
@@ -156,10 +180,18 @@ test('a reduced price without an old price reads like any other', async () => {
   expect(screen.queryByText(/Antes/)).not.toBeInTheDocument()
 })
 
-test('the EAN field is read-only — no chevron, no editor', () => {
-  renderSheet()
-  const code = screen.getByText('8410188012374')
-  expect(code.closest('button')).toBeNull()
+test('an empty field says so in words, not with a dash', () => {
+  renderSheet({ brand: null, quantity: null, stores: [], ean: null })
+  for (const empty of [
+    'Sin marca',
+    'Sin cantidad',
+    'Sin formato',
+    'Sin tiendas',
+    'Sin código',
+  ]) {
+    expect(screen.getByText(empty)).toHaveClass('ficha__field-value--empty')
+  }
+  expect(screen.queryByText('—')).toBeNull()
 })
 
 test('the Nombre field opens the rename editor in place and steps back', () => {
@@ -189,22 +221,105 @@ test('renaming calls onRename with the trimmed value', () => {
   expect(onRename).toHaveBeenCalledWith('Leche desnatada')
 })
 
-test('Marca, Cantidad and Tiendas open their existing per-field editors', () => {
-  const { onEditField } = renderSheet()
+test('Marca and Cantidad edit inside the sheet and step back on save', () => {
+  const { onSetTag, onClose } = renderSheet()
   fireEvent.click(screen.getByRole('button', { name: /marca/i }))
-  expect(onEditField).toHaveBeenCalledWith('brand')
+  fireEvent.change(screen.getByRole('textbox', { name: 'Marca' }), {
+    target: { value: 'Pascual' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+  expect(onSetTag).toHaveBeenCalledWith('brand', 'Pascual')
+
   fireEvent.click(screen.getByRole('button', { name: /cantidad/i }))
-  expect(onEditField).toHaveBeenCalledWith('quantity')
-  fireEvent.click(screen.getByRole('button', { name: /tiendas/i }))
-  expect(onEditField).toHaveBeenCalledWith('stores')
+  fireEvent.change(screen.getByRole('textbox', { name: 'Cantidad' }), {
+    target: { value: '2' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+  expect(onSetTag).toHaveBeenCalledWith('quantity', '2')
+  expect(onClose).not.toHaveBeenCalled()
+  expect(screen.getByText('Producto')).toBeInTheDocument()
 })
 
-test('a purchased record renders its fields read-only', () => {
+test('Tiendas edits inside the sheet', () => {
+  const { onSetStores } = renderSheet()
+  fireEvent.click(screen.getByRole('button', { name: /tiendas/i }))
+  fireEvent.change(screen.getByRole('textbox', { name: 'Nueva tienda' }), {
+    target: { value: 'Lidl' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Añadir tienda' }))
+  expect(onSetStores).toHaveBeenCalledWith(['Mercadona', 'Lidl'])
+})
+
+test('a dismiss inside an editor goes back to the sheet, not the list', () => {
+  const { onClose } = renderSheet()
+  fireEvent.click(screen.getByRole('button', { name: /marca/i }))
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(onClose).not.toHaveBeenCalled()
+  expect(screen.getByText('Producto')).toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: /tiendas/i }))
+  fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
+  expect(onClose).not.toHaveBeenCalled()
+  expect(screen.getByText('Producto')).toBeInTheDocument()
+})
+
+test('a purchased record can still correct its product fields', () => {
   renderSheet({ purchased: true })
-  // None of the editable fields is a button any more.
-  expect(screen.getByText('Nombre').closest('button')).toBeNull()
-  expect(screen.getByText('Marca').closest('button')).toBeNull()
-  expect(screen.getByText('Tiendas').closest('button')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: /marca/i }))
+  expect(screen.getByRole('textbox', { name: 'Marca' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+  fireEvent.click(screen.getByRole('button', { name: /nombre/i }))
+  expect(
+    screen.getByRole('textbox', { name: 'Nombre del producto' }),
+  ).toBeInTheDocument()
+})
+
+const sibling = (name: string, brand: string | null, id: string) => ({
+  ...item,
+  id,
+  name,
+  brand,
+})
+
+test('renaming suggests the products the list already has', () => {
+  const { onRename } = renderSheet(
+    {},
+    {
+      listItems: [
+        item,
+        sibling('Leche entera', 'Puleva', 'i2'),
+        sibling('LECHE semidesnatada', 'Pascual', 'i3'),
+        sibling('Leche semidesnatada', 'Pascual', 'i4'),
+        sibling('Pan', null, 'i5'),
+      ],
+    },
+  )
+  fireEvent.click(screen.getByRole('button', { name: /nombre/i }))
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'Nombre del producto' }),
+    { target: { value: 'léche' } },
+  )
+
+  // One row per name + brand, never the line's own product.
+  const suggestions = screen.getAllByRole('button', { name: /pascual/i })
+  expect(suggestions).toHaveLength(1)
+  expect(screen.queryByRole('button', { name: /puleva/i })).toBeNull()
+  expect(screen.queryByRole('button', { name: /^pan/i })).toBeNull()
+
+  fireEvent.click(suggestions[0])
+  expect(onRename).toHaveBeenCalledWith('LECHE semidesnatada', 'Pascual')
+})
+
+test('renaming a purchased record warns that its prices move', () => {
+  renderSheet({ purchased: true })
+  fireEvent.click(screen.getByRole('button', { name: /nombre/i }))
+  expect(screen.getByText(/historial de precios/i)).toBeInTheDocument()
+})
+
+test('renaming a pending line says nothing about prices', () => {
+  renderSheet()
+  fireEvent.click(screen.getByRole('button', { name: /nombre/i }))
+  expect(screen.queryByText(/historial de precios/i)).toBeNull()
 })
 
 test('the footer clone action calls onClone on a purchased record', () => {
@@ -322,14 +437,18 @@ test('a weighed line has no Formato row', () => {
 })
 
 test('a record with no price yet still offers «Registrar un precio»', async () => {
-  const onLogPrice = vi.fn()
-  renderSheet({ purchased: true }, { onLogPrice })
+  const onSavePrice = vi.fn(async () => true)
+  renderSheet({ purchased: true }, { onSavePrice })
 
   // The history fetch resolves empty; the entry row must not wait on it.
   fireEvent.click(
     await screen.findByRole('button', { name: /registrar un precio/i }),
   )
-  expect(onLogPrice).toHaveBeenCalledOnce()
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+  await waitFor(() =>
+    expect(onSavePrice).toHaveBeenCalledWith(0.89, null, 'Mercadona', null),
+  )
+  expect(await screen.findByText('Producto')).toBeInTheDocument()
 })
 
 test('without a price entry and no history, the ficha shows no entry row', async () => {
@@ -339,4 +458,287 @@ test('without a price entry and no history, the ficha shows no entry row', async
   expect(
     screen.queryByRole('button', { name: /registrar un precio/i }),
   ).not.toBeInTheDocument()
+})
+
+// ── Código (JAV-257) ─────────────────────────────────────
+
+const leche = {
+  ean: '8480000118325',
+  name: 'Leche semidesnatada',
+  brand: 'Hacendado',
+  stores: [],
+  pack: { count: 6, content: 1, unit: 'l' as const },
+}
+
+const blank = { name: 'Leche semidesnatada', brand: null, ean: null }
+
+test('the Código row types a code by hand and fills only empty fields', async () => {
+  vi.mocked(getBarcode).mockResolvedValue(leche)
+  const { onCorrect, onToast } = renderSheet(
+    blank,
+    {},
+    { pack: leche.pack, pack_source: 'off' },
+  )
+
+  fireEvent.click(screen.getByRole('button', { name: /código\s*sin código/i }))
+  const input = screen.getByRole('textbox', { name: 'Código' })
+  fireEvent.change(input, { target: { value: '8480000' } })
+  expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+  fireEvent.change(input, { target: { value: '8480000118325' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+  await waitFor(() =>
+    expect(onCorrect).toHaveBeenCalledWith({
+      ean: '8480000118325',
+      brand: 'Hacendado',
+    }),
+  )
+  expect(onToast).toHaveBeenCalledWith({
+    lead: 'Código guardado.',
+    message: 'Marca y formato añadidos desde Open Food Facts.',
+  })
+})
+
+test('the scan button reads a code with the same flow', async () => {
+  vi.mocked(getBarcode).mockResolvedValue(leche)
+  const { onCorrect } = renderSheet(blank)
+
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Escanear el código de barras' }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Leer (mock)' }))
+
+  await waitFor(() =>
+    expect(onCorrect).toHaveBeenCalledWith({
+      ean: '8480000118325',
+      brand: 'Hacendado',
+    }),
+  )
+})
+
+test('a code the catalogue does not know is saved anyway', async () => {
+  vi.mocked(getBarcode).mockRejectedValue(new ApiError(404, 'Not found'))
+  const { onCorrect, onToast } = renderSheet(blank)
+
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Escanear el código de barras' }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Leer (mock)' }))
+
+  await waitFor(() =>
+    expect(onCorrect).toHaveBeenCalledWith({ ean: '8480000118325' }),
+  )
+  expect(onToast).toHaveBeenCalledWith({
+    lead: 'Código guardado.',
+    message:
+      'Open Food Facts no lo conoce, así que no hay más datos que añadir.',
+  })
+})
+
+test('another code on the line asks before replacing it', async () => {
+  vi.mocked(getBarcode).mockResolvedValue(leche)
+  const { onCorrect } = renderSheet({ ...blank, ean: '8480000118318' })
+
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Escanear el código de barras' }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Leer (mock)' }))
+  expect(screen.getByText('¿Cambiar el código?')).toBeInTheDocument()
+  expect(screen.getByText('Escaneado')).toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Dejar el que tiene' }))
+  expect(onCorrect).not.toHaveBeenCalled()
+
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Escanear el código de barras' }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Leer (mock)' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Cambiar el código' }))
+  await waitFor(() => expect(onCorrect).toHaveBeenCalled())
+})
+
+test.each([
+  [
+    'off' as const,
+    { pack: leche.pack, pack_source: 'off' as const },
+    'Formato añadido desde Open Food Facts.',
+  ],
+  ['manual' as const, {}, ''],
+])(
+  'the toast says what the server did to a format (source %s)',
+  async (source, filled, message) => {
+    vi.mocked(getBarcode).mockResolvedValue({ ...leche, brand: null })
+    const { onToast } = renderSheet(
+      {
+        ...blank,
+        ean: '8480000118318',
+        pack: { count: 1, content: 1, unit: 'l' },
+        pack_source: source,
+      },
+      {},
+      filled,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Escanear el código de barras' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Leer (mock)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar el código' }))
+
+    await waitFor(() =>
+      expect(onToast).toHaveBeenCalledWith({
+        lead: 'Código guardado.',
+        message,
+      }),
+    )
+  },
+)
+
+const SIX_BY_ONE_AND_A_HALF = { count: 6, content: 1.5, unit: 'l' as const }
+
+test.each([
+  [
+    'a format copied from the list',
+    { brand: null },
+    { pack: SIX_BY_ONE_AND_A_HALF, pack_source: 'copied' as const },
+    'Formato copiado de otra línea de tu lista.',
+  ],
+  [
+    'a brand from Open Food Facts and a format from the list',
+    {},
+    { pack: SIX_BY_ONE_AND_A_HALF, pack_source: 'copied' as const },
+    'Marca añadida desde Open Food Facts. Formato copiado de otra línea de tu lista.',
+  ],
+  ['no format on a line sold by weight', { brand: null }, {}, ''],
+])(
+  'the toast says what the save filled: %s',
+  async (_, product, filled, message) => {
+    vi.mocked(getBarcode).mockResolvedValue({ ...leche, ...product })
+    const { onToast } = renderSheet(blank, {}, filled)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Escanear el código de barras' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Leer (mock)' }))
+
+    await waitFor(() =>
+      expect(onToast).toHaveBeenCalledWith({
+        lead: 'Código guardado.',
+        message,
+      }),
+    )
+  },
+)
+
+test('a code Open Food Facts does not know still says the list gave a format', async () => {
+  vi.mocked(getBarcode).mockRejectedValue(new ApiError(404, 'Not found'))
+  const { onToast } = renderSheet(
+    blank,
+    {},
+    { pack: SIX_BY_ONE_AND_A_HALF, pack_source: 'copied' },
+  )
+
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Escanear el código de barras' }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Leer (mock)' }))
+
+  await waitFor(() =>
+    expect(onToast).toHaveBeenCalledWith({
+      lead: 'Código guardado.',
+      message:
+        'Open Food Facts no lo conoce. Formato copiado de otra línea de tu lista.',
+    }),
+  )
+})
+
+async function scanLeche(over: Partial<ListItem>) {
+  vi.mocked(getBarcode).mockResolvedValue(leche)
+  const handlers = renderSheet({ ...blank, ...over })
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Escanear el código de barras' }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Leer (mock)' }))
+  await waitFor(() => expect(handlers.onCorrect).toHaveBeenCalled())
+  return handlers
+}
+
+test('a name the catalogue spells otherwise is a suggestion, open after the scan', async () => {
+  const { onRename } = await scanLeche({ name: 'Leche' })
+
+  const tip = await screen.findByRole('group', {
+    name: 'Nombre en Open Food Facts',
+  })
+  expect(tip).toHaveTextContent('Leche semidesnatada')
+  expect(tip).toHaveTextContent('de Open Food Facts')
+
+  fireEvent.click(screen.getByRole('button', { name: 'Usar' }))
+  expect(onRename).toHaveBeenCalledWith('Leche semidesnatada')
+})
+
+test('a taken suggestion can be undone while the sheet is open', async () => {
+  const { onRename, update } = await scanLeche({ name: 'Leche' })
+  await screen.findByRole('group', { name: 'Nombre en Open Food Facts' })
+  fireEvent.click(screen.getByRole('button', { name: 'Usar' }))
+  update({ name: 'Leche semidesnatada' })
+  expect(
+    screen.getByRole('button', { name: 'Deshacer nombre' }),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByRole('group', { name: 'Nombre anterior' }),
+  ).toHaveTextContent('Antes')
+  onRename.mockClear()
+  fireEvent.click(screen.getByRole('button', { name: 'Restaurar' }))
+  expect(onRename).toHaveBeenCalledWith('Leche')
+})
+
+test('an ignored suggestion leaves the sheet', async () => {
+  await scanLeche({ name: 'Leche' })
+  await screen.findByRole('group', { name: 'Nombre en Open Food Facts' })
+  fireEvent.click(screen.getByRole('button', { name: 'Ignorar' }))
+  expect(
+    screen.queryByRole('button', { name: 'Nombre en Open Food Facts' }),
+  ).toBeNull()
+})
+
+test('a filled brand is no suggestion, a different one is', async () => {
+  await scanLeche({ brand: 'Pascual' })
+  // Name agrees, so the brand is the first that differs.
+  expect(
+    await screen.findByRole('group', { name: 'Marca en Open Food Facts' }),
+  ).toBeInTheDocument()
+})
+
+test('a different format keeps the typed one and is offered with its source', async () => {
+  const { onCorrect } = await scanLeche({
+    brand: 'Hacendado',
+    pack: { count: 12, content: 1, unit: 'l' },
+    pack_source: 'manual',
+  })
+  const tip = await screen.findByRole('group', {
+    name: 'Formato en Open Food Facts',
+  })
+  expect(tip).toHaveTextContent('6 × 1 L')
+  onCorrect.mockClear()
+  fireEvent.click(screen.getByRole('button', { name: 'Usar' }))
+  expect(onCorrect).toHaveBeenCalledWith({
+    pack: leche.pack,
+    pack_source: 'off',
+    ean: '8480000118325',
+  })
+})
+
+test('opening the sheet looks nothing up: no suggestion without a scan', async () => {
+  renderSheet({ name: 'Leche', ean: '8480000118325' })
+  await waitFor(() => expect(getPriceHistory).toHaveBeenCalled())
+  expect(getBarcode).not.toHaveBeenCalled()
+  expect(screen.queryByRole('button', { name: /open food facts/i })).toBeNull()
+})
+
+test('a format from the catalogue says where it came from', () => {
+  renderSheet({
+    pack: { count: 6, content: 1, unit: 'l' },
+    pack_source: 'off',
+  })
+  expect(screen.getByText('de Open Food Facts')).toBeInTheDocument()
 })

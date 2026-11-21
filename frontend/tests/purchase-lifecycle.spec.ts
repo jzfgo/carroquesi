@@ -172,14 +172,14 @@ for (const { name: themeName, colorScheme } of THEMES) {
         ITEM_CAFE.brand ?? '',
       )
 
-      // Row tap opens the ficha. On a purchased record the fields are
-      // read-only — the name field is plain text, not a rename control — and
-      // the footer offers to buy it again.
+      // Row tap opens the ficha. The product fields describe the product, not
+      // the purchase, so they stay editable on a purchased record; the footer
+      // offers to buy it again.
       await card.locator('.item-card__body').click()
       const ficha = page.getByRole('dialog', { name: ITEM_CAFE.name })
       await expect(ficha).toBeVisible()
       await expect(ficha.getByRole('button', { name: /nombre/i })).toHaveCount(
-        0,
+        1,
       )
       await expect(
         ficha.getByRole('button', { name: 'Volver a comprar' }),
@@ -217,7 +217,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
       // A closed-trip record does. It hangs off its trip in the stack; opening
       // it reaches the same ficha, which — having no price yet — offers to set
-      // one through the log sheet.
+      // one in its price sub-state.
       await stackRecord(page, ITEM_MANTEQUILLA.name)
         .locator('.item-card__body')
         .click()
@@ -237,10 +237,13 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await expectScreenshot(page, `log-purchase-sheet-${themeName}.png`)
       await sheet.getByRole('button', { name: 'Guardar' }).click()
 
-      // The save closes the sheet. The stack line is a separate read and is not
-      // refreshed here, so the sheet dismissing is the confirmation, not a new
-      // figure on the card.
+      // The save steps back to the ficha. The stack line is a separate read
+      // and is not refreshed here, so the form leaving is the confirmation,
+      // not a new figure on the card.
       await expect(sheet).toBeHidden()
+      await expect(
+        mantequillaFicha.getByRole('button', { name: /nombre/i }),
+      ).toBeVisible()
     })
   })
 }

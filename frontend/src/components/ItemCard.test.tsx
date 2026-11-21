@@ -484,3 +484,68 @@ describe('a record with a pack format (21b)', () => {
     ).toHaveTextContent(/^2,19 €\/KG$/)
   })
 })
+
+describe('pending and in-cart rows with a pack format (30a/33a)', () => {
+  const water: ListItem = {
+    ...BASE_ITEM,
+    name: 'Agua mineral',
+    brand: 'Bezoya',
+    quantity: '2',
+    pack: { count: 6, content: 1.5, unit: 'l' },
+  }
+
+  test('pending row shows format before brand in the meta', () => {
+    const { container } = renderCard(water)
+    expect(container.querySelector('.item-card__meta')).toHaveTextContent(
+      /^6 × 1,5 L · Bezoya$/,
+    )
+  })
+
+  test('in-cart row shows the same format and brand in the meta', () => {
+    const { container } = renderCard({
+      ...water,
+      purchased: true,
+      purchased_at: TODAY,
+      purchase_ends_at: STILL_OPEN,
+    })
+    expect(container.querySelector('.item-card--cart')).toBeInTheDocument()
+    expect(container.querySelector('.item-card__meta')).toHaveTextContent(
+      /^6 × 1,5 L · Bezoya$/,
+    )
+  })
+
+  test('pending row with a format and no brand shows the format alone', () => {
+    const { container } = renderCard({ ...water, brand: null })
+    expect(container.querySelector('.item-card__meta')).toHaveTextContent(
+      /^6 × 1,5 L$/,
+    )
+  })
+
+  test('a weighed pending line shows no format even with a stored pack', () => {
+    const { container } = renderCard({
+      ...water,
+      price_per: 'KILOGRAM' as const,
+      quantity: '1kg',
+    })
+    expect(container.querySelector('.item-card__meta')).toHaveTextContent(
+      /^Bezoya$/,
+    )
+  })
+
+  test('pending row formats a count-only pack as PACK DE N', () => {
+    const { container } = renderCard({
+      ...water,
+      name: 'Papel higiénico',
+      brand: 'Scottex',
+      pack: { count: 12, content: null, unit: null },
+    })
+    expect(container.querySelector('.item-card__meta')).toHaveTextContent(
+      /^PACK DE 12 · Scottex$/,
+    )
+  })
+
+  test('the quantity column stays bare digits when a format is set', () => {
+    const { container } = renderCard(water)
+    expect(container.querySelector('.item-card__qty')).toHaveTextContent(/^2$/)
+  })
+})

@@ -25,7 +25,6 @@ import {
   updateList,
 } from '../lib/api'
 import { asBoardName, type BoardName } from '../lib/boards'
-import { defaultPriceStore } from '../lib/defaultPriceStore'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { isTripOpen } from '../lib/isTripOpen'
@@ -39,7 +38,6 @@ import { storeKey } from '../lib/storeKey'
 import type {
   BarcodeRead,
   DueSuggestion,
-  EditingTag,
   ElsewhereMatch,
   NameMapping,
   NewPurchasedItem,
@@ -48,7 +46,6 @@ import type {
   ReceiptScanRequest,
   ReceiptScanResult,
   Suggestion,
-  TagField,
 } from '../types'
 import { BarcodeScanner } from './BarcodeScanner'
 import { CloseTripSheet } from './CloseTripSheet'
@@ -58,7 +55,6 @@ import { ItemList } from './ItemList'
 import { ListActionSheet } from './ListActionSheet'
 import { ListHeader } from './ListHeader'
 import './ListScreen.css'
-import LogPurchaseSheet from './LogPurchaseSheet'
 import { NotificationPrimingCard } from './NotificationPrimingCard'
 import { ProgressBar } from './ProgressBar'
 import {
@@ -75,8 +71,6 @@ import { Sheet, type SheetHandle } from './Sheet'
 import { SmartInputBar } from './SmartInputBar'
 import { SmartSearchPill } from './SmartSearchPill'
 import { Stack, type StackHandle } from './Stack'
-import { StoreEditSheet } from './StoreEditSheet'
-import { TagEditSheet } from './TagEditSheet'
 import { Toast } from './Toast'
 
 interface Props {
@@ -101,6 +95,7 @@ type EanLookupState =
 
 interface ToastState {
   message: string
+  lead?: string
   strong?: string
   action?: { label: string; onClick: () => void }
 }
@@ -162,7 +157,6 @@ export function ListScreen({
   // the card keeps offering «Activar avisos» after a grant — or after a denial,
   // when the browser will never show the prompt again.
   const [pushPermission, setPushPermission] = useState(() => permissionState())
-  const [editingTag, setEditingTag] = useState<EditingTag | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
   // The 21b search pill takes over the title-area slot. `searching` is the
@@ -192,11 +186,6 @@ export function ListScreen({
     product: BarcodeRead
   } | null>(null)
   const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([])
-  const [logPriceFor, setLogPriceFor] = useState<{
-    itemId: string
-    initialAmount: number | null
-    initialStore: string | null
-  } | null>(null)
 
   // A write answering 403/404 only *suggests* the list is gone — the missing
   // thing is often the item. Re-read the list itself and evict only when that
@@ -387,6 +376,7 @@ export function ListScreen({
     updateStores,
     renameItem,
     updatePack,
+    correctItem,
     removeItem,
     savePrice,
     retry,
@@ -755,13 +745,6 @@ export function ListScreen({
     [togglePurchased],
   )
 
-  const handleTagClick = useCallback(
-    (itemId: string, field: TagField | 'stores') => {
-      setEditingTag({ itemId, field })
-    },
-    [],
-  )
-
   const handleItemMenuOpen = useCallback((itemId: string) => {
     setActiveItemId(itemId)
   }, [])
@@ -944,45 +927,27 @@ export function ListScreen({
     receiptSourcePickedRef.current = false
   }, [])
 
-  const handleOpenLogPrice = useCallback(
-    (itemId: string) => {
-      const item = items.find((i) => i.id === itemId)
-      setLogPriceFor({
-        itemId,
-        initialAmount: item?.price ?? null,
-        initialStore: item ? defaultPriceStore(item) : null,
-      })
-    },
-    [items],
-  )
-
   const handleSavePrice = useCallback(
     async (
+      itemId: string,
       amount: number,
       pricePer: 'KILOGRAM' | null,
       store: string | null,
       purchasedQuantity: string | null,
     ) => {
-      if (!logPriceFor) return
       if (isOffline) {
         setToast('Sin conexión')
-        return
+        return false
       }
       try {
-        await savePrice(
-          logPriceFor.itemId,
-          amount,
-          pricePer,
-          store,
-          purchasedQuantity,
-        )
+        await savePrice(itemId, amount, pricePer, store, purchasedQuantity)
       } catch {
         setToast('No se pudo guardar el precio')
-        return
+        return false
       }
-      setLogPriceFor(null)
+      return true
     },
-    [logPriceFor, savePrice, isOffline, setToast],
+    [savePrice, isOffline, setToast],
   )
 
   const handleEanSearch = useCallback(
@@ -1268,43 +1233,6 @@ export function ListScreen({
         onSuggestionDismiss={handleSuggestionDismiss}
       />
 
-      {editingTag &&
-        (() => {
-          const editedItem = items.find((i) => i.id === editingTag.itemId)
-          if (!editedItem) return null
-          if (editingTag.field === 'stores') {
-            return (
-              <StoreEditSheet
-                key={editingTag.itemId}
-                item={editedItem}
-                items={items}
-                onSave={(stores: string[]) => {
-                  void updateStores(editingTag.itemId, stores)
-                  setEditingTag(null)
-                }}
-                onClose={() => setEditingTag(null)}
-              />
-            )
-          }
-          return (
-            <TagEditSheet
-              key={`${editingTag.itemId}-${editingTag.field}`}
-              item={editedItem}
-              field={editingTag.field}
-              items={items}
-              onSave={(value) => {
-                void updateTag(
-                  editingTag.itemId,
-                  editingTag.field as TagField,
-                  value,
-                )
-                setEditingTag(null)
-              }}
-              onClose={() => setEditingTag(null)}
-            />
-          )
-        })()}
-
       {activeItemId &&
         (() => {
           const activeItem = items.find((i) => i.id === activeItemId)
@@ -1321,24 +1249,30 @@ export function ListScreen({
               displayStore={displayStore}
               getToken={getToken}
               listId={listId}
+              listItems={items}
               purchased={activeItem.purchased}
-              onRename={(name) => {
-                void renameItem(activeItemId, name)
-                setActiveItemId(null)
-              }}
-              onEditField={(field) => {
-                handleTagClick(activeItemId, field)
-                setActiveItemId(null)
-              }}
+              onRename={(name, brand) =>
+                void renameItem(activeItemId, name, brand)
+              }
+              onSetTag={(field, value) =>
+                void updateTag(activeItemId, field, value)
+              }
+              onSetStores={(stores) => void updateStores(activeItemId, stores)}
               onSetPack={(pack) => void updatePack(activeItemId, pack)}
-              onLogPrice={
+              onCorrect={(patch) => correctItem(activeItemId, patch)}
+              onSavePrice={
                 isRecord
-                  ? () => {
-                      handleOpenLogPrice(activeItemId)
-                      setActiveItemId(null)
-                    }
+                  ? (amount, pricePer, store, qty) =>
+                      handleSavePrice(
+                        activeItemId,
+                        amount,
+                        pricePer,
+                        store,
+                        qty,
+                      )
                   : undefined
               }
+              onToast={(t) => setToastState(t)}
               onDelete={() => {
                 void removeItem(activeItemId)
                 setActiveItemId(null)
@@ -1384,7 +1318,7 @@ export function ListScreen({
           onRenameStore={(key, name) => void handleRenameStore(key, name)}
         />
       )}
-      {!editingTag && !menuOpen && !activeItemId && (
+      {!menuOpen && !activeItemId && (
         <div className="bottom-panel">
           <SmartInputBar
             value={inputValue}
@@ -1408,6 +1342,7 @@ export function ListScreen({
         <Toast
           message={toast.message}
           strong={toast.strong}
+          lead={toast.lead}
           action={toast.action}
           onDismiss={() => setToast(null)}
         />
@@ -1421,23 +1356,6 @@ export function ListScreen({
           onClose={() => setScanTarget(null)}
         />
       )}
-
-      {logPriceFor &&
-        (() => {
-          const logItem = items.find((i) => i.id === logPriceFor.itemId)
-          if (!logItem) return null
-          return (
-            <LogPurchaseSheet
-              item={logItem}
-              displayStore={displayStore}
-              initialAmount={logPriceFor.initialAmount}
-              initialStore={logPriceFor.initialStore}
-              initialPurchasedQuantity={logItem.purchased_quantity ?? null}
-              onSave={handleSavePrice}
-              onClose={() => setLogPriceFor(null)}
-            />
-          )
-        })()}
 
       {closeTrip && (
         <CloseTripSheet

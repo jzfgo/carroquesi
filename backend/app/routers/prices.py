@@ -9,6 +9,7 @@ from app.db.models import ListItem, ListMember, Purchase
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
 from app.schemas.prices import PriceCreate, PriceEntry, PriceHistoryResponse
 from app.services import trips
+from app.services.pack_from_name import drop_format_when_weighed
 from app.services.store_registry import ensure_stores
 
 router = APIRouter(prefix="/lists/{list_id}/items/{item_id}/prices", tags=["prices"])
@@ -31,6 +32,7 @@ def _write_price(item: ListItem, price_in: PriceCreate, session: Session) -> Pri
     # no longer describes it.
     item.price_reduced = False
     item.price_before = None
+    drop_format_when_weighed(item)
     session.add(item)
     if price_in.store:
         ensure_stores(session, item.list_id, [price_in.store])
