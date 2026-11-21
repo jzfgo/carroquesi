@@ -292,9 +292,9 @@ jobs:
           # This file grants no Bash, on purpose. (Tag mode still adds the
           # action's own `git add`/`commit`/`rm` and push wrapper, so an
           # `@claude` run can push to the PR branch. The automatic review
-          # cannot: see `--disallowedTools` below.) A prefix rule
-          # cannot vet arguments, and each of the grants this job used to carry
-          # let injected text in a PR or issue write or run code:
+          # cannot: see `--disallowedTools` below.) A prefix rule cannot vet
+          # arguments, and each of the grants this job used to carry let
+          # injected text in a PR or issue write or run code:
           # - `Bash(gh api:*)`: `-X POST`/`-X DELETE` can follow any prefix.
           # - `Bash(git:*)`: `git -c <key>=<cmd>` and `git config` run commands.
           #   Even "read-only" subcommands escape: `--output=<file>` on
@@ -331,21 +331,29 @@ jobs:
           CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
 
       # Tag mode creates the tracking comment before Claude starts, so a
-      # comment on the PR no longer proves the review posted anything. What
-      # does is a call to the tool that writes into that comment, or to the
-      # inline-comment tool. `review-skipped` reads this output. No execution
-      # file, or one it cannot read, means nothing was posted.
+      # comment on the PR no longer proves the review posted anything. Any
+      # update of that comment does not prove it either: the agent posts its
+      # checklist there first, with the action's spinner, and fills in the
+      # findings at the end. The prompt tells it to remove the spinner when it
+      # is done. So the review counts as posted when the agent made an inline
+      # comment, or when the last body it wrote into the tracking comment no
+      # longer holds the spinner's image id. An agent that forgets to remove
+      # the spinner gets a false alarm, never a silent pass.
+      # `review-skipped` reads this output. No execution file, or one it
+      # cannot read, means nothing was posted.
       - name: Check whether the agent posted its review
         id: posted
         if: always()
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+          SPINNER_ID: 5ac382c7-e004-429b-8e35-7feb3e8f9c6f
         run: |
           posted=false
-          if [ -f "$EXECUTION_FILE" ] && jq -e '
-            any(.[] | select(.type == "assistant") | .message.content[]?;
-              .type == "tool_use" and (.name == "mcp__github_comment__update_claude_comment"
-                or .name == "mcp__github_inline_comment__create_inline_comment"))
+          if [ -f "$EXECUTION_FILE" ] && jq -e --arg spinner "$SPINNER_ID" '
+            [.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use")] as $calls
+            | ($calls | any(.name == "mcp__github_inline_comment__create_inline_comment"))
+              or ($calls | map(select(.name == "mcp__github_comment__update_claude_comment"))
+                  | last | .input.body // "" | length > 0 and (contains($spinner) | not))
           ' "$EXECUTION_FILE" > /dev/null; then
             posted=true
           fi
@@ -428,7 +436,7 @@ jobs:
         run: |
           # Unquoted delimiter so $RUN_URL expands; the backticks are escaped.
           gh pr comment "$PR" --body-file - <<MSG
-          Revisión automática omitida: el run terminó sin publicar nada. Lo que hizo el agente está en el resumen del run: $RUN_URL
+          Revisión automática omitida: el run terminó sin publicar la revisión. Lo que hizo el agente está en el resumen del run: $RUN_URL
 
           Si quieres una revisión, comenta \`@claude\` pidiéndola.
           MSG
