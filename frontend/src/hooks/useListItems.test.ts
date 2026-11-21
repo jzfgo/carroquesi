@@ -1566,9 +1566,28 @@ describe('useListItems — correctItem', () => {
       mockGetToken,
       'list-1',
       'item-1',
-      { ean: '8480000118325', brand: 'Hacendado' },
+      { ean: '8480000118325', brand: 'Hacendado', stores: ['Mercadona'] },
     )
     expect(result.current.items[0]).toEqual(saved)
+  })
+
+  it('leaves stores alone when the patch fills no brand', async () => {
+    vi.mocked(api.updateItem).mockResolvedValue(item1 as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.correctItem('item-1', { ean: '8480000118325' })
+    })
+
+    expect(api.updateItem).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { ean: '8480000118325' },
+    )
   })
 
   it('reverts, says so and answers false on API failure', async () => {

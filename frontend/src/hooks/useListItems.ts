@@ -528,6 +528,11 @@ export function useListItems(
         return false
       }
       const snapshot = itemsRef.current
+      const current = snapshot.find((i) => i.id === itemId)
+      if (patch.brand && current) {
+        const stores = withOwnBrandStore(patch.brand, current.stores)
+        if (stores !== current.stores) patch = { ...patch, stores }
+      }
       setItems(
         snapshot.map((i) =>
           i.id === itemId ? ({ ...i, ...patch } as ListItem) : i,
