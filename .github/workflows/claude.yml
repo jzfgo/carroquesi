@@ -387,8 +387,8 @@ jobs:
 
   # A run can still end without posting anything (the plugin's first step
   # stops on trivial or automated PRs, or on PRs Claude already commented
-  # on), and the run still ends green. Without a comment, a skipped review looks like
-  # a review that has not arrived yet. This job says so on the PR.
+  # on), and the run still ends green. Without a comment, a skipped review
+  # looks like a review that has not arrived yet. This job says so on the PR.
   #
   # It is a separate job so that its write token never reaches the agent: the
   # `claude` job keeps read-only scopes. `needs` makes this job wait for it and
