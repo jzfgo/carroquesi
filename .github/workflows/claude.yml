@@ -317,8 +317,9 @@ jobs:
           # `acceptEdits` would allow. On an open PR, with no commit, the push
           # wrapper has nothing to push. (If the PR closes before the action
           # sets up its branch, the action makes a new `claude/` branch from
-          # the base, and the wrapper could push that. It never reaches the PR
-          # branch or the base.) All of `Bash` is not denied: that would also
+          # the base. The wrapper could push that branch, and the action's own
+          # cleanup could commit leftover changes to it. Neither reaches the PR
+          # branch or the base.) Not all of `Bash` is denied: that would also
           # block the read-only `git diff` and `git log`, and tag mode has no
           # other way to see the diff. A deny rule wins over the action's own
           # allow list. An `@claude` run keeps them all, so it can still push a
