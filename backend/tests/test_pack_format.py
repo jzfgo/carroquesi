@@ -481,6 +481,79 @@ def test_a_code_added_later_never_replaces_a_format(client: TestClient, session:
     assert scanned["pack_source"] == "manual"
 
 
+def test_a_code_added_later_brings_the_format_of_the_lists_own_line(
+    client: TestClient, session: Session
+):
+    _cache(session, "1 l")
+    lst = _list(client)
+    _bought_line(
+        session,
+        lst["id"],
+        "8410188011128",
+        5,
+        pack_count=6,
+        pack_content=1.5,
+        pack_content_unit="l",
+    )
+    item = _item(client, lst["id"])
+
+    scanned = _patch(client, lst["id"], item["id"], {"ean": "8410188011128"}).json()
+
+    assert scanned["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert scanned["pack_source"] == "copied"
+
+
+def test_a_code_added_later_brings_no_format_to_a_weighed_line(
+    client: TestClient, session: Session
+):
+    _cache(session, "1 kg")
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Ternera", price=8.82, price_per="KILOGRAM")
+
+    scanned = _patch(client, lst["id"], item["id"], {"ean": "8410188011128"}).json()
+
+    assert scanned["pack"] is None
+
+
+OTHER_EAN = "8480000118325"
+
+
+def test_a_new_code_replaces_the_format_the_old_code_guessed(client: TestClient, session: Session):
+    _cache(session, "6 x 1,5 l")
+    _cache(session, "5 l", ean=OTHER_EAN)
+    lst = _list(client)
+    item = _item(client, lst["id"])
+    _patch(client, lst["id"], item["id"], {"ean": "8410188011128"})
+
+    rescanned = _patch(client, lst["id"], item["id"], {"ean": OTHER_EAN}).json()
+
+    assert rescanned["pack"] == {"count": 1, "content": 5, "unit": "l"}
+    assert rescanned["pack_source"] == "off"
+
+
+def test_a_new_code_with_no_size_keeps_the_old_guess(client: TestClient, session: Session):
+    _cache(session, "6 x 1,5 l")
+    lst = _list(client)
+    item = _item(client, lst["id"])
+    _patch(client, lst["id"], item["id"], {"ean": "8410188011128"})
+
+    rescanned = _patch(client, lst["id"], item["id"], {"ean": OTHER_EAN}).json()
+
+    assert rescanned["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert rescanned["pack_source"] == "off"
+
+
+def test_a_new_code_never_replaces_the_format_in_the_name(client: TestClient, session: Session):
+    _cache(session, "5 l", ean=OTHER_EAN)
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Agua 6x1,5L")
+
+    rescanned = _patch(client, lst["id"], item["id"], {"ean": OTHER_EAN}).json()
+
+    assert rescanned["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert rescanned["pack_source"] == "name"
+
+
 def test_resending_the_same_code_reads_no_size(client: TestClient, session: Session):
     lst = _list(client)
     item = _item(client, lst["id"], ean="8410188011128")
@@ -510,6 +583,19 @@ def test_a_source_without_a_format_changes_nothing(client: TestClient):
     _patch(client, lst["id"], item["id"], {"pack": SIX_BY_ONE_AND_A_HALF})
 
     after = _patch(client, lst["id"], item["id"], {"pack_source": "off"}).json()
+
+    assert after["pack_source"] == "manual"
+
+
+def test_a_source_never_relabels_the_format_it_comes_with(client: TestClient):
+    """Resending the format already there with a guess's source would let a
+    later rename replace a format someone typed."""
+    lst = _list(client)
+    item = _item(client, lst["id"])
+    _patch(client, lst["id"], item["id"], {"pack": SIX_BY_ONE_AND_A_HALF})
+
+    body = {"pack": SIX_BY_ONE_AND_A_HALF, "pack_source": "off"}
+    after = _patch(client, lst["id"], item["id"], body).json()
 
     assert after["pack_source"] == "manual"
 

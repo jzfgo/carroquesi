@@ -546,6 +546,35 @@ test('another code on the line asks before replacing it', async () => {
   await waitFor(() => expect(onCorrect).toHaveBeenCalled())
 })
 
+test.each([
+  ['off' as const, 'Formato añadido desde Open Food Facts.'],
+  ['manual' as const, ''],
+])(
+  'a new code replaces a format the old one guessed (source %s)',
+  async (source, message) => {
+    vi.mocked(getBarcode).mockResolvedValue({ ...leche, brand: null })
+    const { onToast } = renderSheet({
+      ...blank,
+      ean: '8480000118318',
+      pack: { count: 1, content: 1, unit: 'l' },
+      pack_source: source,
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Escanear el código de barras' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Leer (mock)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar el código' }))
+
+    await waitFor(() =>
+      expect(onToast).toHaveBeenCalledWith({
+        lead: 'Código guardado.',
+        message,
+      }),
+    )
+  },
+)
+
 async function scanLeche(over: Partial<ListItem>) {
   vi.mocked(getBarcode).mockResolvedValue(leche)
   const handlers = renderSheet({ ...blank, ...over })

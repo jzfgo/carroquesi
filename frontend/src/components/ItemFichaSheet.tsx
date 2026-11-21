@@ -476,7 +476,11 @@ export function ItemFichaSheet({
       known = err instanceof ApiError && err.status === 404 ? false : null
     }
     const brand = product?.brand && !item.brand ? product.brand : null
-    const fillsPack = !!product?.pack && !item.pack && hasFormat
+    // A format an earlier code guessed gives way to the new code's.
+    const guessedPack =
+      item.pack_source === 'off' || item.pack_source === 'copied'
+    const fillsPack =
+      !!product?.pack && (!item.pack || guessedPack) && hasFormat
     const saved = await onCorrect(brand ? { ean, brand } : { ean })
     if (!saved) return
     onToast(codeToast(known, !!brand, fillsPack))
@@ -491,7 +495,7 @@ export function ItemFichaSheet({
     const after = {
       ...item,
       brand: item.brand ?? brand,
-      pack: item.pack ?? (fillsPack ? product.pack : null),
+      pack: fillsPack ? product.pack : (item.pack ?? null),
     }
     const fields = differingFields(after, found)
     setCatalogue(found)

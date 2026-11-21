@@ -132,6 +132,32 @@ def _take_format_of_ean(session: Session, item: ListItem, ean: str) -> None:
         item.pack_source = "copied"
 
 
+_GUESSED_FROM_A_CODE = ("off", "copied")
+
+
+def _format_from_ean(session: Session, item: ListItem, ean: str) -> None:
+    """The format a code brings to a line with none: the list's own last
+    line with that code first, then the size Open Food Facts gives. A line
+    sold by weight shows no format, so it gets none.
+
+    A format an earlier code guessed named that code's product, so the new
+    code's format replaces it. When the new code brings none, the old guess
+    stays. A format typed, read in the name or on a receipt always stays."""
+    if item.price_per == "KILOGRAM":
+        return
+    kept = None
+    if item.pack_source in _GUESSED_FROM_A_CODE:
+        kept = (item.pack_count, item.pack_content, item.pack_content_unit, item.pack_source)
+        for column, value in pack_columns(None).items():
+            setattr(item, column, value)
+    _take_format_of_ean(session, item, ean)
+    # The cache is warm here: a scan looks the code up before it saves it.
+    cached = session.exec(select(BarcodeCache).where(BarcodeCache.ean == ean)).first()
+    fill_from_off(item, cached.quantity if cached else None)
+    if kept is not None and item.pack is None:
+        item.pack_count, item.pack_content, item.pack_content_unit, item.pack_source = kept
+
+
 def add_item(
     body: ItemCreate,
     list_and_user: MemberOrDefaultDep,
@@ -145,11 +171,7 @@ def add_item(
         **pack_columns(body.pack.model_dump() if body.pack else None),
     )
     if body.ean:
-        _take_format_of_ean(session, item, body.ean)
-        # The list's own lines first. The cache is warm here: a scan looks
-        # the code up before it adds the line.
-        cached = session.exec(select(BarcodeCache).where(BarcodeCache.ean == body.ean)).first()
-        fill_from_off(item, cached.quantity if cached else None)
+        _format_from_ean(session, item, body.ean)
     fill_from_name(item)
     # After the format leaves the name: «Agua 6x1,5L» is the pending «Agua».
     if find_pending_duplicate(session, lst.id, item.name, item.ean) is not None:
@@ -193,17 +215,18 @@ def update_item(
         data.pop("pack")
         # Whole, not exclude_unset: a field left out of the format is a default,
         # not "keep". A scan in this request sets the EAN after it is cleared.
+        before = item.pack
         item.change_pack(body.pack.model_dump() if body.pack else None)
-        if pack_source is not None and item.pack is not None:
+        # Only a format this request changed takes the source it names:
+        # relabelling a typed format as a guess would let a rename replace it.
+        if pack_source is not None and item.pack is not None and item.pack != before:
             item.pack_source = pack_source
     new_ean = "ean" in data and data["ean"] is not None and data["ean"] != item.ean
     for field, value in data.items():
         setattr(item, field, value)
     if new_ean:
-        # The same rule as a new line: the catalogue fills only a line with
-        # no format.
-        cached = session.exec(select(BarcodeCache).where(BarcodeCache.ean == item.ean)).first()
-        fill_from_off(item, cached.quantity if cached else None)
+        # The same rule as a new line.
+        _format_from_ean(session, item, data["ean"])
     if "name" in data and "pack" not in body.model_fields_set:
         fill_from_name(item)
     if data.get("stores"):
