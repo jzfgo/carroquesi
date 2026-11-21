@@ -120,13 +120,8 @@ jobs:
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     outputs:
-      started: ${{ steps.started.outputs.at }}
+      posted: ${{ steps.posted.outputs.posted }}
     steps:
-      # The `review-skipped` job counts Claude's comments made after this.
-      - name: Note when the run started
-        id: started
-        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-
       # Fails closed: if the lookup fails or the fork is gone, `head` is empty
       # and the run stops. Issues that are not PRs leave `PR` empty and pass.
       - name: Refuse to run on pull requests from forks
@@ -145,10 +140,10 @@ jobs:
       # other code, and this job holds the repo's Claude token. To bump one,
       # resolve the new tag to its commit and update the trailing comment.
       #
-      # `persist-credentials: false`: the action replaces the checkout's token
-      # with its own before Claude starts, but in agent mode it carries on if
-      # that fails, so the token is never written in the first place. The guard
-      # below fetches anonymously, which a public repo allows.
+      # `persist-credentials: false`: the action writes its own token into the
+      # checkout before Claude starts, so the job's token has no reason to be
+      # there at all. The guard below fetches anonymously, which a public repo
+      # allows.
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -294,9 +289,10 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options.
           #
-          # This file grants no Bash, on purpose. (On comment triggers the
-          # action still adds its own `git add`/`commit`/`rm` and push wrapper,
-          # so an `@claude` run can push to the PR branch.) A prefix rule
+          # This file grants no Bash, on purpose. (Tag mode, which every
+          # trigger now runs in, still adds the action's own `git add`/`commit`/
+          # `rm` and push wrapper, so any run, the automatic review included,
+          # can push to the PR branch.) A prefix rule
           # cannot vet arguments, and each of the grants this job used to carry
           # let injected text in a PR or issue write or run code:
           # - `Bash(gh api:*)`: `-X POST`/`-X DELETE` can follow any prefix.
@@ -310,14 +306,14 @@ jobs:
           # The job's `contents: read` does not contain any of that: the action
           # acts with its own app token. The reviewer reads code with Read and
           # Grep and flags claims about repo settings (rulesets, required
-          # checks) as unverified. Only `@claude` runs get the CI tools that
-          # read results through `actions: read`.
+          # checks) as unverified. Tag mode also gives every run the CI tools
+          # that read results through `actions: read`.
           #
           # `--disallowedTools ScheduleWakeup`: see the step's `env` below.
           claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch" --disallowedTools "ScheduleWakeup"'
-        # The plugin's review agents must run in the foreground. Launched in
-        # the background, the main agent ends its turn "waiting on them", the
-        # headless session exits there, and they die before posting: run
+        # Subagents must run in the foreground. Launched in the background,
+        # the main agent ends its turn "waiting on them", the headless
+        # session exits there, and they die before posting: run
         # 44847076788 (#528) ended with "Three review agents are still running;
         # waiting on them." and a ScheduleWakeup call. That is why most
         # automatic reviews since #514 posted nothing. The variable removes
@@ -326,6 +322,27 @@ jobs:
         # would only be a suggestion; this leaves no choice.
         env:
           CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
+
+      # Tag mode creates the tracking comment before Claude starts, so a
+      # comment on the PR no longer proves the review posted anything. What
+      # does is a call to the tool that writes into that comment, or to the
+      # inline-comment tool. `review-skipped` reads this output. No execution
+      # file, or one it cannot read, means nothing was posted.
+      - name: Check whether the agent posted its review
+        id: posted
+        if: always()
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: |
+          posted=false
+          if [ -f "$EXECUTION_FILE" ] && jq -e '
+            any(.[] | select(.type == "assistant") | .message.content[]?;
+              .type == "tool_use" and (.name == "mcp__github_comment__update_claude_comment"
+                or .name == "mcp__github_inline_comment__create_inline_comment"))
+          ' "$EXECUTION_FILE" > /dev/null; then
+            posted=true
+          fi
+          echo "posted=$posted" >> "$GITHUB_OUTPUT"
 
       # The action hides the agent's output, and the log keeps only a count of
       # denied tool calls. That left skipped reviews undiagnosable (#520, #522,
@@ -380,16 +397,18 @@ jobs:
                 (.[] | "- `\(.tool_name)`: `\(.tool_input | inline)`") end)
           ' "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
-  # A run can still end green without posting anything (the action stopped
-  # before creating its tracking comment, for instance). Without a comment, a skipped review
-  # looks like a review that has not arrived yet. This job says so on the PR.
+  # A run can still end green having posted nothing: the agent can end its
+  # turn without writing its findings into the tracking comment (the
+  # background-task hang on #528, a turn limit). The action then fills that
+  # comment with only its "Claude finished" header, which reads like a clean
+  # review. This job says on the PR that no review was posted.
   #
   # It is a separate job so that its write token never reaches the agent: the
   # `claude` job keeps read-only scopes. `needs` makes this job wait for it and
   # run only when it succeeded, because a failed run is already a red check.
   review-skipped:
     needs: claude
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && needs.claude.outputs.posted != 'true'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -397,28 +416,9 @@ jobs:
       - name: Comment when the review posted nothing
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
-          SINCE: ${{ needs.claude.outputs.started }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          # A failed lookup must fail the job, not read as zero comments.
-          set -o pipefail
-          if [ -z "$SINCE" ]; then
-            echo "::error::The claude job did not report when it started."
-            exit 1
-          fi
-          # Tracking comments, inline comments and reviews: a run can post
-          # any of the three. A group returns only its last command's status,
-          # and `$(...)` drops `-e`, so `&&` is what makes each lookup count.
-          count=$(
-            {
-              gh api --paginate "repos/$GH_REPO/issues/$PR/comments" --jq '.[] | [.user.login, .created_at] | @tsv' &&
-              gh api --paginate "repos/$GH_REPO/pulls/$PR/comments" --jq '.[] | [.user.login, .created_at] | @tsv' &&
-              gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" --jq '.[] | [.user.login, .submitted_at] | @tsv'
-            } | awk -F '\t' -v since="$SINCE" '$1 == "claude[bot]" && $2 >= since' | wc -l
-          )
-          [ "$count" -gt 0 ] && exit 0
           # Unquoted delimiter so $RUN_URL expands; the backticks are escaped.
           gh pr comment "$PR" --body-file - <<MSG
           Revisión automática omitida: el run terminó sin publicar nada. Lo que hizo el agente está en el resumen del run: $RUN_URL
