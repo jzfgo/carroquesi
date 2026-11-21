@@ -227,16 +227,27 @@ def test_unpurchase_blocked_when_the_trip_closed_before_a_future_tear_off(
 
 
 @pytest.mark.parametrize(
-    "extra",
-    [{}, {"quantity": "2"}, {"purchased_quantity": None}],
-    ids=["purchased-only", "same-quantity", "same-purchased-quantity"],
+    ("bought_quantity", "extra"),
+    [
+        (None, {}),
+        (None, {"quantity": "2"}),
+        (None, {"purchased_quantity": None}),
+        ("3", {"purchased_quantity": "3"}),
+    ],
+    ids=[
+        "purchased-only",
+        "with-a-correction",
+        "same-purchased-quantity-unset",
+        "same-purchased-quantity",
+    ],
 )
 def test_repeat_purchase_does_not_reopen_the_write_grace(
-    client: TestClient, session: Session, extra: dict
+    client: TestClient, session: Session, bought_quantity: str | None, extra: dict
 ):
     """A retried or Siri-sent purchase on a bought item is no change: it must
     not stamp updated_at, or it would reopen the un-purchase grace window.
-    Fields sent along with their current value change nothing either."""
+    A product correction sent along never stamps a bought line, and a bought
+    quantity resent with its current value changes nothing either."""
     from app.db.models import ListItem
     from app.routers.items import UNPURCHASE_GRACE
 
@@ -252,6 +263,10 @@ def test_repeat_purchase_does_not_reopen_the_write_grace(
         updated_ago=UNPURCHASE_GRACE + timedelta(minutes=1),
     )
     db_item = session.get_one(ListItem, item["id"])
+    session.refresh(db_item)
+    db_item.purchased_quantity = bought_quantity
+    session.add(db_item)
+    session.commit()
     session.refresh(db_item)
     aged_updated_at = db_item.updated_at
 
@@ -269,6 +284,7 @@ def test_repeat_purchase_does_not_reopen_the_write_grace(
 def test_repeat_purchase_with_a_real_change_still_stamps(client: TestClient, session: Session):
     """A repeat purchase that also changes the bought quantity is a real edit:
     it stamps updated_at, which opens the grace window again."""
+    from app.db.models import ListItem
     from app.routers.items import UNPURCHASE_GRACE
 
     lst = _create_list(client)
@@ -282,6 +298,9 @@ def test_repeat_purchase_with_a_real_change_still_stamps(client: TestClient, ses
         closed_at=now - timedelta(hours=1),
         updated_ago=UNPURCHASE_GRACE + timedelta(minutes=1),
     )
+    db_item = session.get_one(ListItem, item["id"])
+    session.refresh(db_item)
+    aged_updated_at = db_item.updated_at
 
     response = client.patch(
         f"/lists/{lst['id']}/items/{item['id']}",
@@ -289,6 +308,8 @@ def test_repeat_purchase_with_a_real_change_still_stamps(client: TestClient, ses
     )
     assert response.status_code == 200
     assert response.json()["purchased_quantity"] == "3"
+    session.refresh(db_item)
+    assert db_item.updated_at > aged_updated_at
 
     response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
     assert response.status_code == 200
