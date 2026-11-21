@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -225,14 +226,22 @@ def test_unpurchase_blocked_when_the_trip_closed_before_a_future_tear_off(
     assert response.status_code == 409
 
 
-def test_repeat_purchase_does_not_reopen_the_write_grace(client: TestClient, session: Session):
+@pytest.mark.parametrize(
+    "extra",
+    [{}, {"quantity": "2"}, {"purchased_quantity": None}],
+    ids=["purchased-only", "same-quantity", "same-purchased-quantity"],
+)
+def test_repeat_purchase_does_not_reopen_the_write_grace(
+    client: TestClient, session: Session, extra: dict
+):
     """A retried or Siri-sent purchase on a bought item is no change: it must
-    not stamp updated_at, or it would reopen the un-purchase grace window."""
+    not stamp updated_at, or it would reopen the un-purchase grace window.
+    Fields sent along with their current value change nothing either."""
     from app.db.models import ListItem
     from app.routers.items import UNPURCHASE_GRACE
 
     lst = _create_list(client)
-    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread", "quantity": "2"}).json()
     now = datetime.now(UTC)
     _purchase_and_age(
         client,
@@ -246,13 +255,43 @@ def test_repeat_purchase_does_not_reopen_the_write_grace(client: TestClient, ses
     session.refresh(db_item)
     aged_updated_at = db_item.updated_at
 
-    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    response = client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True, **extra}
+    )
     assert response.status_code == 200
     session.refresh(db_item)
     assert db_item.updated_at == aged_updated_at
 
     response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
     assert response.status_code == 409
+
+
+def test_repeat_purchase_with_a_real_change_still_stamps(client: TestClient, session: Session):
+    """A repeat purchase that also changes the bought quantity is a real edit:
+    it stamps updated_at, which opens the grace window again."""
+    from app.routers.items import UNPURCHASE_GRACE
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    now = datetime.now(UTC)
+    _purchase_and_age(
+        client,
+        session,
+        lst,
+        item,
+        closed_at=now - timedelta(hours=1),
+        updated_ago=UNPURCHASE_GRACE + timedelta(minutes=1),
+    )
+
+    response = client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"purchased": True, "purchased_quantity": "3"},
+    )
+    assert response.status_code == 200
+    assert response.json()["purchased_quantity"] == "3"
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 200
 
 
 def test_unpurchase_backdated_item_within_write_grace(client: TestClient, session: Session):
