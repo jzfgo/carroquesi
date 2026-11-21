@@ -227,34 +227,29 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # `pull_request` runs have no comment to follow, so they run the official
-          # `code-review` plugin. It comments on each line of the diff it has an
-          # issue with, and posts "No issues found" when it has none. A run can
-          # still end without posting (its first step stops on trivial or
-          # automated changes, or on PRs Claude already commented on). The
-          # `review-skipped` job below turns that silence into a comment, and
-          # the job summary shows what the agent did. Every other trigger
-          # passes an empty prompt, which leaves the action following the
-          # instruction in the comment that mentioned @claude. The plugin is
-          # installed for those runs too, so `@claude /code-review:code-review`
-          # also works there. The plugin itself comes from `--plugin-dir` in
-          # `claude_args` below.
-          prompt: ${{ github.event_name == 'pull_request' && format('/code-review:code-review --comment {0}/pull/{1}', github.repository, github.event.pull_request.number) || '' }}
+          # The automatic review on `pull_request` runs exactly like an `@claude`
+          # re-review: tag mode, the same default prompt (PR title and body,
+          # comments, changed files, CLAUDE.md) and one tracking comment edited
+          # in place. `track_progress` is what forces tag mode on this event;
+          # without it a `prompt` means agent mode, which has no tool to post
+          # with (#163, #164). The prompt below stands in for the comment a
+          # person would have written, and the action appends it as custom
+          # instructions.
+          #
+          # It used to run the official `code-review` plugin instead. That
+          # plugin keeps only high-confidence bugs and quotable CLAUDE.md
+          # breaches and drops edge cases, risks and test gaps by design, so on
+          # #530-#532 it posted "No issues found" where an `@claude` re-review
+          # of the same commit returned a full report. It is still installed
+          # (`--plugin-dir` in `claude_args`), so
+          # `@claude /code-review:code-review` runs it on request.
+          #
+          # Every other trigger passes an empty prompt, which leaves the action
+          # following the instruction in the comment that mentioned @claude, in
+          # tag mode as before.
+          track_progress: ${{ github.event_name == 'pull_request' }}
+          prompt: ${{ github.event_name == 'pull_request' && format('Review this pull request in full (HEAD {0}). Read the whole diff against the base branch and the code around it, and check it against the PR title and description and against every AGENTS.md or CLAUDE.md that covers the changed files. Report bugs, unhandled edge cases, risks, gaps in test coverage and mismatches with the description, and say which ones should block the merge. Post your findings in your comment even if there are none.', github.event.pull_request.head.sha) || '' }}
 
-          # No `track_progress` here, on purpose. With a prompt, a `pull_request`
-          # run is in **agent mode**, which creates no tracking comment. With the
-          # old hand-written brief that was a problem: agent mode hands the agent
-          # no comment-posting tool, so the review ran and posted nothing
-          # (#163, #164). `track_progress` fixed that by forcing tag mode.
-          #
-          # The plugin brings its own way to post: `gh pr comment` for the summary,
-          # granted by its own `allowed-tools`, and the inline-comment tool, which
-          # the action adds in agent mode once `claude_args` allows it (below).
-          # Forcing tag mode now would hurt twice. Tag mode wraps `prompt` into its
-          # own prompt as custom instructions, so the slash command would arrive
-          # as text and not run. And its tracking comment would sit next to the
-          # plugin's own comments, so every review would post twice.
-          #
           # NOTE: posting is NOT a permissions problem, and granting `issues: write`
           # / `pull-requests: write` would not change it. The action posts with its
           # own OIDC-minted token (hence `id-token: write`), which is why runs
@@ -385,9 +380,8 @@ jobs:
                 (.[] | "- `\(.tool_name)`: `\(.tool_input | inline)`") end)
           ' "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
-  # A run can still end without posting anything (the plugin's first step
-  # stops on trivial or automated PRs, or on PRs Claude already commented
-  # on), and the run still ends green. Without a comment, a skipped review
+  # A run can still end green without posting anything (the action stopped
+  # before creating its tracking comment, for instance). Without a comment, a skipped review
   # looks like a review that has not arrived yet. This job says so on the PR.
   #
   # It is a separate job so that its write token never reaches the agent: the
@@ -414,7 +408,7 @@ jobs:
             echo "::error::The claude job did not report when it started."
             exit 1
           fi
-          # Summary comments, inline comments and reviews: the plugin can post
+          # Tracking comments, inline comments and reviews: a run can post
           # any of the three. A group returns only its last command's status,
           # and `$(...)` drops `-e`, so `&&` is what makes each lookup count.
           count=$(
@@ -427,7 +421,7 @@ jobs:
           [ "$count" -gt 0 ] && exit 0
           # Unquoted delimiter so $RUN_URL expands; the backticks are escaped.
           gh pr comment "$PR" --body-file - <<MSG
-          Revisión automática omitida: el plugin \`code-review\` terminó sin publicar nada. Lo que hizo el agente está en el resumen del run: $RUN_URL
+          Revisión automática omitida: el run terminó sin publicar nada. Lo que hizo el agente está en el resumen del run: $RUN_URL
 
-          Si quieres una revisión, comenta \`@claude /code-review:code-review\`.
+          Si quieres una revisión, comenta \`@claude\` pidiéndola.
           MSG
