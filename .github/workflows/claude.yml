@@ -229,16 +229,16 @@ jobs:
 
           # `pull_request` runs have no comment to follow, so they run the official
           # `code-review` plugin. It comments on each line of the diff it has an
-          # issue with, and posts "No issues found" when it has none. Some runs
-          # end without posting anything, for a reason not yet confirmed (its
-          # first step is meant to stop on trivial or automated changes, or on
-          # PRs Claude already commented on). The `review-skipped` job below
-          # turns that silence into a comment, and the job summary shows what
-          # the agent did. Every other trigger passes an empty prompt, which
-          # leaves the action following the instruction in the comment
-          # that mentioned @claude. The plugin is installed for those runs too,
-          # so `@claude /code-review:code-review` also works there.
-          # The plugin itself comes from `--plugin-dir` in `claude_args` below.
+          # issue with, and posts "No issues found" when it has none. A run can
+          # still end without posting (its first step stops on trivial or
+          # automated changes, or on PRs Claude already commented on). The
+          # `review-skipped` job below turns that silence into a comment, and
+          # the job summary shows what the agent did. Every other trigger
+          # passes an empty prompt, which leaves the action following the
+          # instruction in the comment that mentioned @claude. The plugin is
+          # installed for those runs too, so `@claude /code-review:code-review`
+          # also works there. The plugin itself comes from `--plugin-dir` in
+          # `claude_args` below.
           prompt: ${{ github.event_name == 'pull_request' && format('/code-review:code-review --comment {0}/pull/{1}', github.repository, github.event.pull_request.number) || '' }}
 
           # No `track_progress` here, on purpose. With a prompt, a `pull_request`
@@ -317,7 +317,20 @@ jobs:
           # Grep and flags claims about repo settings (rulesets, required
           # checks) as unverified. Only `@claude` runs get the CI tools that
           # read results through `actions: read`.
-          claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch"'
+          #
+          # `--disallowedTools ScheduleWakeup`: see the step's `env` below.
+          claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch" --disallowedTools "ScheduleWakeup"'
+        # The plugin's review agents must run in the foreground. Launched in
+        # the background, the main agent ends its turn "waiting on them", the
+        # headless session exits there, and they die before posting: run
+        # 44847076788 (#528) ended with "Three review agents are still running;
+        # waiting on them." and a ScheduleWakeup call. That is why most
+        # automatic reviews since #514 posted nothing. The variable removes
+        # `run_in_background` from Agent and Bash, and the action passes the
+        # step's environment to Claude. A prompt asking for the foreground
+        # would only be a suggestion; this leaves no choice.
+        env:
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
 
       # The action hides the agent's output, and the log keeps only a count of
       # denied tool calls. That left skipped reviews undiagnosable (#520, #522,
