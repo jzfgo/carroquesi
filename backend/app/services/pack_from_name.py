@@ -220,9 +220,8 @@ def fill_from_name(item: ListItem) -> None:
     item.pack_source = "name"
 
 
-# Every source but a typed format. "quantity" is a size an old backfill
-# moved out of the quantity.
-_GUESSED = ("name", "receipt", "off", "copied", "quantity")
+# Every source but a typed format.
+_GUESSED = ("name", "receipt", "off", "copied")
 
 
 def drop_format_when_weighed(item: ListItem) -> None:
@@ -236,12 +235,12 @@ def drop_format_when_weighed(item: ListItem) -> None:
     if item.price_per != "KILOGRAM" or item.pack_source not in _GUESSED:
         return
     pack = item.pack
-    if item.pack_source in ("name", "quantity") and pack and pack["count"] == 1 and pack["unit"]:
+    if item.pack_source == "name" and pack and pack["count"] == 1 and pack["unit"]:
         figure = f"{pack['content']:g}".replace(".", ",")
         size = f"{figure} {pack['unit']}"
         if not item.quantity:
             item.quantity = size
-        elif item.pack_source == "name" and _is_one_weight(pack):
+        elif _is_one_weight(pack):
             item.name = f"{item.name} {size}"
     for column, value in pack_columns(None).items():
         setattr(item, column, value)
