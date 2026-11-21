@@ -1,0 +1,51 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-21T10:30:00Z"
+ },
+ "title": "Formato en la fila pendiente · JAV-246",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 620,
+   "title": "1 · Pendiente (30a) y en el carro (33a): formato en la meta"
+  },
+  "Cantidad.dc.html": {
+   "x": 470,
+   "y": 0,
+   "w": 390,
+   "h": 860,
+   "title": "2 · Columna de cantidad (21b) con formato, caso a caso"
+  },
+  "Secuencia.dc.html": {
+   "x": 940,
+   "y": 0,
+   "w": 390,
+   "h": 420,
+   "title": "3 · La misma línea al comprarla"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Cantidad.dc.html",
+  "Secuencia.dc.html"
+ ],
+ "notes": {
+  "rules": {
+   "x": 0,
+   "y": 980,
+   "w": 560,
+   "size": "m",
+   "fill": "blue",
+   "text": "Reglas\n\n• Meta del pendiente: formato y luego marca, «6 × 1,5 L · BEZOYA», mismo orden que la fila comprada (21b). Al comprar solo cambia la voz y se antepone «2 UD».\n• Voz escrita (Patrick Hand SC), mayúsculas, la tinta de la meta. formatPack(pack, true).\n• Columna de cantidad: siempre la cifra sola, como hoy (21b). Cuenta packs; el formato de la meta dice qué es un pack.\n• Sin cantidad escrita: la columna queda vacía; el formato ya dice que es un pack.\n• En el carro: igual que pendiente, con la tinta un paso más clara (--ink-2).\n• Formato deducido (nombre, EAN, Open Food Facts, recompra) se ve igual que el escrito; el origen solo en la ficha (22a).\n• A peso (KILOGRAM): sin formato, sin cambios.\n• Borde discontinuo azul = UI que aún no existe."
+  }
+ },
+ "designSystems": []
+}

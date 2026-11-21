@@ -38,7 +38,8 @@ function purchasedToday(purchasedAt: string | null): boolean {
  * The item row — three states, two voices (DESIGN.md, 30a/33a):
  *
  * - Pending: an instruction in the household's handwriting — name, the
- *   quantity column on the right, brand beneath, no price. Empty circle.
+ *   quantity column on the right, format and brand beneath, no price. Empty
+ *   circle.
  * - In cart: still the written voice — you wrote it, and it stays yours
  *   until the trip closes — on ink a step lighter. The circle fills with
  *   `--tinta-0` and takes the white cart glyph. Derived, not stored: a
@@ -81,7 +82,8 @@ export function ItemCard({
 
   // A record folds its quantity and format into the printed detail line
   // («2 UD · 6 × 1,5 L · BEZOYA»); the other states keep the quantity in the
-  // right-hand column and the meta carries the brand alone.
+  // right-hand column and carry the format before the brand («6 × 1,5 L ·
+  // BEZOYA»), matching the bought order.
   const meta = (
     bought
       ? [
@@ -89,7 +91,7 @@ export function ItemCard({
           pack && formatPack(pack, true),
           item.brand,
         ]
-      : [item.brand]
+      : [pack && formatPack(pack, true), item.brand]
   )
     .filter(Boolean)
     .join(' · ')
