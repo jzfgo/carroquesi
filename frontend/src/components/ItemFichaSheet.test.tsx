@@ -681,15 +681,42 @@ test('a taken suggestion can be undone while the sheet is open', async () => {
   await screen.findByRole('group', { name: 'Nombre en Open Food Facts' })
   fireEvent.click(screen.getByRole('button', { name: 'Usar' }))
   update({ name: 'Leche semidesnatada' })
-  expect(
-    screen.getByRole('button', { name: 'Deshacer nombre' }),
-  ).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Deshacer nombre' }))
   expect(
     screen.getByRole('group', { name: 'Nombre anterior' }),
   ).toHaveTextContent('Antes')
   onRename.mockClear()
   fireEvent.click(screen.getByRole('button', { name: 'Restaurar' }))
   expect(onRename).toHaveBeenCalledWith('Leche')
+})
+
+test('a taken suggestion folds its tip, leaving only the undo', async () => {
+  const { onRename, update } = await scanLeche({ name: 'Leche' })
+  await screen.findByRole('group', { name: 'Nombre en Open Food Facts' })
+  fireEvent.click(screen.getByRole('button', { name: 'Usar' }))
+  // Before the save lands: no tip still offers the old suggestion.
+  expect(
+    screen.queryByRole('group', { name: 'Nombre en Open Food Facts' }),
+  ).toBeNull()
+  update({ name: 'Leche semidesnatada' })
+  // After it: the undo waits, closed, so a second tap restores nothing.
+  expect(screen.queryByRole('group', { name: 'Nombre anterior' })).toBeNull()
+  expect(
+    screen.getByRole('button', { name: 'Deshacer nombre' }),
+  ).toBeInTheDocument()
+  expect(onRename).toHaveBeenCalledTimes(1)
+})
+
+test('a tap outside an open tip folds it and opens nothing beneath', async () => {
+  await scanLeche({ name: 'Leche' })
+  await screen.findByRole('group', { name: 'Nombre en Open Food Facts' })
+  fireEvent.click(screen.getByTestId('tip-catcher'))
+  expect(
+    screen.queryByRole('group', { name: 'Nombre en Open Food Facts' }),
+  ).toBeNull()
+  // Still the main view: no editor slid in.
+  expect(screen.queryByRole('textbox')).toBeNull()
+  expect(screen.queryByTestId('tip-catcher')).toBeNull()
 })
 
 test('an ignored suggestion leaves the sheet', async () => {

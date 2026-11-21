@@ -268,6 +268,51 @@ function makeItem(overrides: Partial<ListItem>): ListItem {
 }
 
 describe('ListScreen', () => {
+  it('reads the stack again once a ficha edit on a bought line lands', async () => {
+    const bought = makeItem({
+      id: 'b1',
+      name: 'Leche',
+      purchased: true,
+      purchased_at: '2026-07-21T09:00:00',
+      purchase_ends_at: '2026-07-21T20:00:00',
+      price: 1,
+    })
+    const renameItem = vi.fn(async () => {})
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [bought],
+      renameItem,
+    })
+    vi.mocked(api.getPurchases).mockResolvedValue({
+      purchases: [
+        {
+          id: 'p1',
+          list_id: 'list1',
+          opened_at: '2026-07-21T09:00:00',
+          tears_off_at: '2026-07-22T00:00:00',
+          closed_at: '2026-07-21T20:00:00',
+          store: 'Mercadona',
+          total: 1,
+          line_count: 1,
+          has_receipt: false,
+          items_total: null,
+          items: [bought],
+        },
+      ],
+      total: 1,
+    })
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(await screen.findByText('Leche'))
+    fireEvent.click(await screen.findByRole('button', { name: /^Nombre/ }))
+    const input = screen.getByDisplayValue('Leche')
+    fireEvent.change(input, { target: { value: 'Leche entera' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(renameItem).toHaveBeenCalledWith('b1', 'Leche entera', undefined)
+    await waitFor(() => expect(api.getPurchases).toHaveBeenCalledTimes(2))
+  })
+
   it('renders the list name in the header', () => {
     render(
       <ListScreen

@@ -657,6 +657,12 @@
   cursor: pointer;
 }
 
+/* The disc's own layer stays inside the bulb, so an open tip's catcher
+   covers every other bulb too. */
+.ficha__badge {
+  isolation: isolate;
+}
+
 .ficha__badge > span {
   position: relative;
   z-index: 1;
@@ -703,6 +709,18 @@
     transform: scale(1.6);
     opacity: 0;
   }
+}
+
+/* Under an open tip and its bulb, over everything else: a tap outside folds
+   the tip and goes no further. */
+.ficha__tip-catcher {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+.ficha__badge--on {
+  z-index: 2;
 }
 
 /* The catalogue's value, under the row, pointing at its bulb. */
