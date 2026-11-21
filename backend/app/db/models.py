@@ -126,8 +126,7 @@ class ListItem(SQLModel, table=True):
     pack_content_unit: str | None = Field(default=None)
     # Where the format came from: "manual" (typed, or a line created with
     # one), "name" (read out of the item's name), "receipt" (printed on
-    # the receipt line it was bought on), "quantity" (a package size the
-    # backfill moved out of the quantity), "off" (the size Open Food Facts
+    # the receipt line it was bought on), "off" (the size Open Food Facts
     # gives for the line's EAN), "copied" (taken from another line: the
     # list's last line with the same EAN, or the line a re-buy clones).
     # A name the user types replaces a guess from a name, a receipt, Open

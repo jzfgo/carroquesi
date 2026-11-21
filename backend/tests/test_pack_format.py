@@ -773,25 +773,6 @@ def test_a_price_per_kilo_never_puts_a_code_format_in_the_name(
     assert line["quantity"] == "2"
 
 
-def test_a_price_per_kilo_puts_a_backfilled_size_back_in_the_quantity(
-    client: TestClient, session: Session
-):
-    lst = _list(client)
-    item = _item(client, lst["id"], name="Ternera")
-    row = session.get_one(ListItem, item["id"])
-    row.pack_content = 500
-    row.pack_content_unit = "g"
-    row.pack_source = "quantity"
-    session.add(row)
-    session.commit()
-
-    _price_per_kilo(client, lst["id"], item["id"])
-
-    line = _lines_of(client, lst["id"])["Ternera"]
-    assert line["pack"] is None
-    assert line["quantity"] == "500 g"
-
-
 def test_a_price_per_kilo_drops_a_pack_from_the_name_when_a_quantity_was_typed(
     client: TestClient,
 ):
