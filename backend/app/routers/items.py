@@ -210,8 +210,16 @@ def update_item(
     corrected = _LINE_FIELDS if was_purchased else _FORMAT_FIELDS
     correction_only = bool(data) and purchased is None and data.keys() <= corrected
     # A repeat purchase (Siri, a retried request) changes nothing. Stamping it
-    # would reopen the un-purchase grace window on a closed trip.
-    repeat_purchase = purchased is True and was_purchased and not data
+    # would reopen the un-purchase grace window on a closed trip. A field sent
+    # with it keeps it a repeat when it is a correction or its value is the
+    # current one.
+    repeat_purchase = (
+        purchased is True
+        and was_purchased
+        and all(
+            field in corrected or getattr(item, field) == value for field, value in data.items()
+        )
+    )
     pack_source = data.pop("pack_source", None)
     # Read before the format: a new format clears the code, and a request
     # that sends the same code back has not changed it.
