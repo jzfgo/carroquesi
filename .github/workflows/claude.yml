@@ -385,8 +385,9 @@ jobs:
                 (.[] | "- `\(.tool_name)`: `\(.tool_input | inline)`") end)
           ' "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
-  # Some runs end without posting anything (why is not yet confirmed), and
-  # the run still ends green. Without a comment, a skipped review looks like
+  # A run can still end without posting anything (the plugin's first step
+  # stops on trivial or automated PRs, or on PRs Claude already commented
+  # on), and the run still ends green. Without a comment, a skipped review looks like
   # a review that has not arrived yet. This job says so on the PR.
   #
   # It is a separate job so that its write token never reaches the agent: the
