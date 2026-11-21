@@ -20,7 +20,11 @@ from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 from app.services import trips
 from app.services.bought_by_weight import mark_bought_by_weight
 from app.services.client_day import ClientTimezone
-from app.services.pack_from_name import fill_from_name, fill_from_off
+from app.services.pack_from_name import (
+    drop_format_when_weighed,
+    fill_from_name,
+    fill_from_off,
+)
 from app.services.pending_duplicate import find_pending_duplicate
 from app.services.push import notify_list_change
 from app.services.store_registry import ensure_stores
@@ -137,14 +141,11 @@ _GUESSED_FROM_A_CODE = ("off", "copied")
 
 def _format_from_ean(session: Session, item: ListItem, ean: str) -> None:
     """The format a code brings to a line with none: the list's own last
-    line with that code first, then the size Open Food Facts gives. A line
-    sold by weight shows no format, so it gets none.
+    line with that code first, then the size Open Food Facts gives.
 
     A format an earlier code guessed named that code's product, so the new
     code's format replaces it. When the new code brings none, the old guess
     stays. A format typed, read in the name or on a receipt always stays."""
-    if item.price_per == "KILOGRAM":
-        return
     kept = None
     if item.pack_source in _GUESSED_FROM_A_CODE:
         kept = (item.pack_count, item.pack_content, item.pack_content_unit, item.pack_source)
@@ -173,6 +174,7 @@ def add_item(
     if body.ean:
         _format_from_ean(session, item, body.ean)
     fill_from_name(item)
+    drop_format_when_weighed(item)
     # After the format leaves the name: «Agua 6x1,5L» is the pending «Agua».
     if find_pending_duplicate(session, lst.id, item.name, item.ean) is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Item already in list")
@@ -231,6 +233,7 @@ def update_item(
         _format_from_ean(session, item, data["ean"])
     if "name" in data and "pack" not in body.model_fields_set:
         fill_from_name(item)
+    drop_format_when_weighed(item)
     if data.get("stores"):
         ensure_stores(session, lst.id, data["stores"])
     if purchased is True and item.purchased_at is None:

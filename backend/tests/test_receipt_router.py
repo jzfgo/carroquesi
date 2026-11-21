@@ -2367,6 +2367,45 @@ def test_a_receipt_read_format_never_replaces_one_the_line_has(client, session):
     assert item.pack_source == "name"
 
 
+def test_a_receipt_read_format_never_lands_on_a_weighed_line(client, session):
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_patch_body(price=8.82, price_per="KILOGRAM", read_pack=SIX_BY_ONE_AND_A_HALF),
+    )
+
+    session.expire_all()
+    assert session.get_one(ListItem, "item-almendras").pack is None
+
+
+def test_a_receipt_per_kilo_drops_the_format_the_line_guessed(client, session):
+    item = session.get_one(ListItem, "item-almendras")
+    item.pack_count = 1
+    item.pack_content = 1
+    item.pack_content_unit = "kg"
+    item.pack_source = "off"
+    session.add(item)
+    session.commit()
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_patch_body(price=8.82, price_per="KILOGRAM"),
+    )
+
+    session.expire_all()
+    assert session.get_one(ListItem, "item-almendras").pack is None
+
+
+def test_a_created_weighed_receipt_item_takes_no_read_format(client, session):
+    body = _new_item_body(
+        price=8.82, price_per="KILOGRAM", read_pack={"count": 1, "content": 1, "unit": "kg"}
+    )
+
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.pack is None
+
+
 def test_a_format_typed_in_the_review_wins_over_the_read_one(client, session):
     client.post(
         f"/lists/{LIST_ID}/receipt-prices",

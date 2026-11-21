@@ -637,3 +637,241 @@ def test_a_scan_on_a_bought_line_does_not_reopen_the_unpurchase_grace(
 
     session.refresh(row)
     assert row.updated_at.replace(tzinfo=UTC) == long_ago
+
+
+# A line sold by weight has no format, wherever the format would come from.
+
+
+def _lines_of(client: TestClient, list_id: str) -> dict:
+    return {i["name"]: i for i in client.get(f"/lists/{list_id}/items").json()}
+
+
+def _price_per_kilo(client: TestClient, list_id: str, item_id: str) -> None:
+    client.post(
+        f"/lists/{list_id}/items/{item_id}/prices",
+        json={"amount": 8.82, "price_per": "KILOGRAM"},
+    )
+
+
+def test_a_weighed_line_moves_the_size_in_its_name_to_the_quantity(client: TestClient):
+    lst = _list(client)
+
+    item = _item(client, lst["id"], name="Ternera 1kg", price=8.82, price_per="KILOGRAM")
+
+    assert item["name"] == "Ternera"
+    assert item["quantity"] == "1 kg"
+    assert item["pack"] is None
+
+
+def test_a_weighed_line_with_a_quantity_keeps_its_name(client: TestClient):
+    """The quantity was typed apart, with its sigil, so it wins."""
+    lst = _list(client)
+
+    item = _item(
+        client,
+        lst["id"],
+        name="Ternera 1kg",
+        quantity="2 kg",
+        price=8.82,
+        price_per="KILOGRAM",
+    )
+
+    assert item["name"] == "Ternera 1kg"
+    assert item["quantity"] == "2 kg"
+    assert item["pack"] is None
+
+
+def test_a_weighed_line_keeps_a_typed_format(client: TestClient):
+    lst = _list(client)
+
+    item = _item(
+        client,
+        lst["id"],
+        name="Ternera",
+        price=8.82,
+        price_per="KILOGRAM",
+        pack=SIX_BY_ONE_AND_A_HALF,
+    )
+
+    assert item["pack"] == SIX_BY_ONE_AND_A_HALF
+
+
+def test_a_price_per_kilo_moves_the_size_from_the_name_to_the_quantity(client: TestClient):
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Ternera 1,5kg")
+    assert item["pack"] == {"count": 1, "content": 1.5, "unit": "kg"}
+
+    _price_per_kilo(client, lst["id"], item["id"])
+
+    line = _lines_of(client, lst["id"])["Ternera"]
+    assert line["pack"] is None
+    assert line["pack_source"] is None
+    assert line["quantity"] == "1,5 kg"
+
+
+def test_a_packaged_line_with_a_quantity_moves_the_weight_to_the_format(client: TestClient):
+    """Two bags of 1 kg: the weight is the product's format."""
+    lst = _list(client)
+
+    item = _item(client, lst["id"], name="Arroz 1kg", quantity="2")
+
+    assert item["name"] == "Arroz"
+    assert item["pack"] == {"count": 1, "content": 1, "unit": "kg"}
+
+
+def test_a_price_per_kilo_puts_the_weight_back_in_the_name_when_a_quantity_was_typed(
+    client: TestClient,
+):
+    """The usual order: the line is typed, and priced per kilo later. The
+    quantity is taken, so the weight goes back where it was typed."""
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Ternera 1kg", quantity="2")
+
+    _price_per_kilo(client, lst["id"], item["id"])
+
+    line = _lines_of(client, lst["id"])["Ternera 1 kg"]
+    assert line["pack"] is None
+    assert line["quantity"] == "2"
+
+
+def test_a_weighed_line_with_a_quantity_keeps_grams_in_its_name(client: TestClient):
+    lst = _list(client)
+
+    item = _item(
+        client, lst["id"], name="Queso 250g", quantity="2", price=12.5, price_per="KILOGRAM"
+    )
+
+    assert item["name"] == "Queso 250g"
+    assert item["pack"] is None
+
+
+def test_a_weighed_line_with_a_quantity_drops_a_pack_of_weights(client: TestClient):
+    """Several pieces is no weight to buy: it leaves the name and goes."""
+    lst = _list(client)
+
+    item = _item(
+        client, lst["id"], name="Queso 2x250g", quantity="1", price=12.5, price_per="KILOGRAM"
+    )
+
+    assert item["name"] == "Queso"
+    assert item["pack"] is None
+    assert item["quantity"] == "1"
+
+
+def test_a_price_per_kilo_never_puts_a_code_format_in_the_name(
+    client: TestClient, session: Session
+):
+    _cache(session, "1 kg")
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Ternera", quantity="2", ean="8410188011128")
+    assert item["pack_source"] == "off"
+
+    _price_per_kilo(client, lst["id"], item["id"])
+
+    line = _lines_of(client, lst["id"])["Ternera"]
+    assert line["pack"] is None
+    assert line["quantity"] == "2"
+
+
+def test_a_price_per_kilo_puts_a_backfilled_size_back_in_the_quantity(
+    client: TestClient, session: Session
+):
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Ternera")
+    row = session.get_one(ListItem, item["id"])
+    row.pack_content = 500
+    row.pack_content_unit = "g"
+    row.pack_source = "quantity"
+    session.add(row)
+    session.commit()
+
+    _price_per_kilo(client, lst["id"], item["id"])
+
+    line = _lines_of(client, lst["id"])["Ternera"]
+    assert line["pack"] is None
+    assert line["quantity"] == "500 g"
+
+
+def test_a_price_per_kilo_drops_a_pack_from_the_name_when_a_quantity_was_typed(
+    client: TestClient,
+):
+    """Only a single weight goes back: a pack is no weight to buy."""
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Agua 6x1,5L", quantity="2")
+
+    _price_per_kilo(client, lst["id"], item["id"])
+
+    line = _lines_of(client, lst["id"])["Agua"]
+    assert line["pack"] is None
+    assert line["quantity"] == "2"
+
+
+def test_a_price_per_kilo_drops_a_format_a_code_brought(client: TestClient, session: Session):
+    """Only a size read in the name says how much to buy. The code stays:
+    nobody changed the format by hand."""
+    _cache(session, "1 kg")
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Ternera", ean="8410188011128")
+    assert item["pack_source"] == "off"
+
+    _price_per_kilo(client, lst["id"], item["id"])
+
+    line = _lines_of(client, lst["id"])["Ternera"]
+    assert line["pack"] is None
+    assert line["quantity"] is None
+    assert line["ean"] == "8410188011128"
+
+
+def test_a_price_per_kilo_keeps_a_typed_format(client: TestClient):
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Ternera", pack=SIX_BY_ONE_AND_A_HALF)
+
+    _price_per_kilo(client, lst["id"], item["id"])
+
+    assert _lines_of(client, lst["id"])["Ternera"]["pack"] == SIX_BY_ONE_AND_A_HALF
+
+
+def test_a_price_per_unit_keeps_the_guessed_format(client: TestClient):
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Agua 6x1,5L")
+
+    client.post(f"/lists/{lst['id']}/items/{item['id']}/prices", json={"amount": 3.48})
+
+    assert _lines_of(client, lst["id"])["Agua"]["pack"] == SIX_BY_ONE_AND_A_HALF
+
+
+def test_closing_a_line_per_kilo_drops_its_guessed_format(client: TestClient):
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Ternera 1kg")
+    _patch(client, lst["id"], item["id"], {"purchased": True})
+
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "lines": [{"item_id": item["id"], "price": 8.82, "price_per": "KILOGRAM"}],
+        },
+    )
+
+    line = _lines_of(client, lst["id"])["Ternera"]
+    assert line["pack"] is None
+    assert line["quantity"] == "1 kg"
+
+
+def test_an_impulse_buy_per_kilo_takes_no_format_from_its_name(client: TestClient):
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Pan")
+    _patch(client, lst["id"], item["id"], {"purchased": True})
+
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "lines": [{"item_id": item["id"]}],
+            "new_items": [{"name": "Queso 250g", "price": 12.5, "price_per": "KILOGRAM"}],
+        },
+    )
+
+    queso = _lines_of(client, lst["id"])["Queso"]
+    assert queso["pack"] is None
+    assert queso["quantity"] == "250 g"

@@ -1553,7 +1553,7 @@ describe('useListItems — correctItem', () => {
     )
     await waitFor(() => expect(result.current.status).toBe('success'))
 
-    let ok: boolean | undefined
+    let ok: ListItem | null | undefined
     await act(async () => {
       ok = await result.current.correctItem('item-1', {
         ean: '8480000118325',
@@ -1561,7 +1561,7 @@ describe('useListItems — correctItem', () => {
       })
     })
 
-    expect(ok).toBe(true)
+    expect(ok).toEqual(saved)
     expect(api.updateItem).toHaveBeenCalledWith(
       mockGetToken,
       'list-1',
@@ -1590,19 +1590,19 @@ describe('useListItems — correctItem', () => {
     )
   })
 
-  it('reverts, says so and answers false on API failure', async () => {
+  it('reverts, says so and answers null on API failure', async () => {
     vi.mocked(api.updateItem).mockRejectedValue(new Error('boom'))
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
     )
     await waitFor(() => expect(result.current.status).toBe('success'))
 
-    let ok: boolean | undefined
+    let ok: ListItem | null | undefined
     await act(async () => {
       ok = await result.current.correctItem('item-1', { ean: '8480000118325' })
     })
 
-    expect(ok).toBe(false)
+    expect(ok).toBeNull()
     expect(result.current.items[0].ean).toBe(item1.ean)
     expect(mockShowToast).toHaveBeenCalledWith(
       'No se pudo actualizar el producto',
@@ -1617,12 +1617,12 @@ describe('useListItems — correctItem', () => {
     await waitFor(() => expect(result.current.status).toBe('success'))
 
     reportRequestOutcome(false)
-    let ok: boolean | undefined
+    let ok: ListItem | null | undefined
     await act(async () => {
       ok = await result.current.correctItem('item-1', { ean: '8480000118325' })
     })
 
-    expect(ok).toBe(false)
+    expect(ok).toBeNull()
     expect(api.updateItem).not.toHaveBeenCalled()
     expect(mockShowToast).toHaveBeenCalledWith('Sin conexión')
     reportRequestOutcome(true)
