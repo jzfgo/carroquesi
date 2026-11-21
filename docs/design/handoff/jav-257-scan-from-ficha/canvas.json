@@ -1,0 +1,122 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-20T17:43:45Z"
+  },
+  "title": "Escanear código desde la ficha · JAV-257",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 402,
+      "h": 760,
+      "title": "1 · Ficha: «Código» vacío, con «Escanear»"
+    },
+    "Escaner.dc.html": {
+      "x": 482,
+      "y": 0,
+      "w": 390,
+      "h": 560,
+      "title": "2 · Escáner abierto desde la ficha"
+    },
+    "Rellenada.dc.html": {
+      "x": 952,
+      "y": 0,
+      "w": 402,
+      "h": 760,
+      "title": "3 · Tras escanear: código, marca y formato"
+    },
+    "Nombre.dc.html": {
+      "x": 0,
+      "y": 1180,
+      "w": 402,
+      "h": 760,
+      "title": "4 · El catálogo dice otra cosa: tooltip abierto"
+    },
+    "Reemplazar.dc.html": {
+      "x": 482,
+      "y": 1180,
+      "w": 402,
+      "h": 760,
+      "title": "5 · Ya tenía otro código"
+    },
+    "Desconocido.dc.html": {
+      "x": 952,
+      "y": 1180,
+      "w": 402,
+      "h": 760,
+      "title": "6 · Código que el catálogo no conoce"
+    },
+    "Plegado.dc.html": {
+      "x": 0,
+      "y": 2360,
+      "w": 402,
+      "h": 760,
+      "title": "4b · Tooltip plegado: un icono por campo"
+    },
+    "Deshacer.dc.html": {
+      "x": 482,
+      "y": 2360,
+      "w": 402,
+      "h": 760,
+      "title": "4c · Sugerencia aplicada: deshacer"
+    },
+    "AMano.dc.html": {
+      "x": 1434,
+      "y": 1180,
+      "w": 402,
+      "h": 520,
+      "title": "7 · Escribir o corregir el código a mano"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Escaner.dc.html",
+    "Rellenada.dc.html",
+    "Nombre.dc.html",
+    "Reemplazar.dc.html",
+    "Desconocido.dc.html",
+    "Plegado.dc.html",
+    "Deshacer.dc.html",
+    "AMano.dc.html"
+  ],
+  "notes": {
+    "t1": {
+      "kind": "title1",
+      "x": 0,
+      "y": -300,
+      "text": "Escanear y rellenar",
+      "w": 400,
+      "maxW": 1354
+    },
+    "t2": {
+      "kind": "title1",
+      "x": 0,
+      "y": 880,
+      "text": "Casos",
+      "w": 240,
+      "maxW": 1836
+    },
+    "t3": {
+      "kind": "title1",
+      "x": 0,
+      "y": 2060,
+      "text": "Lo que dice el catálogo",
+      "w": 400,
+      "maxW": 1354
+    },
+    "n1": {
+      "x": 1434,
+      "y": 0,
+      "w": 300,
+      "fill": "blue",
+      "text": "Reglas\n\n· Solo se rellenan campos vacíos: marca y formato. Nunca el nombre.\n· Sin pantalla de confirmación: se aplica y lo dice un aviso.\n· El formato muestra su origen; la marca no tiene campo de origen.\n· Código desconocido: se guarda igual.\n· Otro código ya puesto: se pregunta antes.\n· Botones de acción: la negativa a la izquierda, la afirmativa a la derecha.\n· Tooltip: ✕ rojo / ✓ verde, los círculos de 10d (adjust-suggest__disc).\n· Línea pendiente o comprada: mismo flujo.\n· Si el catálogo dice otra cosa en un campo ya relleno (nombre, marca, formato): tooltip con Ignorar / Usar. Tocar fuera lo pliega en una bombilla en esa fila; tocar la bombilla lo vuelve a abrir.\n· Tras ✓, la bombilla pasa a deshacer (↺, mismo azul, nunca con onda): su tooltip muestra «Antes» y ✓ restaura (vuelve la bombilla). Solo mientras la ficha está abierta; al cerrarla, el cambio queda.\n· Tras escanear (o escribir el código), se abre solo el tooltip del primer campo distinto; el resto, plegado. Al reabrir la ficha más tarde, todo plegado.\n· Bombilla recién aparecida tras escanear: onda expansiva (círculo relleno que crece por debajo y se desvanece) 2–3 veces (~1,4 s cada una) y para. En 4b va en bucle solo para verla. Con «reducir movimiento», sin onda.\n· Tocar la fila «Código» lo escribe a mano; el icono abre el escáner. Escrito o escaneado, se rellena igual.\n\nContorno discontinuo = UI nueva."
+    }
+  },
+  "designSystems": []
+}

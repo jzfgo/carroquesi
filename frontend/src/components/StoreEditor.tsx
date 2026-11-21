@@ -3,17 +3,16 @@ import { useState } from 'react'
 import { storeKey } from '../lib/storeKey'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem } from '../types'
-import { Sheet } from './Sheet'
-import './StoreEditSheet.css'
+import './StoreEditor.css'
 
 interface Props {
   item: ListItem
   items: ListItem[]
   onSave: (stores: string[]) => void
-  onClose: () => void
 }
 
-export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
+/** Edits a line's stores: a sub-state of the item sheet. */
+export function StoreEditor({ item, items, onSave }: Props) {
   const [input, setInput] = useState('')
   const currentStores = item.stores
 
@@ -42,21 +41,21 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
   }
 
   return (
-    <Sheet className="store-edit-sheet" label="Tiendas" onClose={onClose}>
-      <div className="store-edit-sheet__header">
+    <div className="store-editor">
+      <div className="store-editor__header">
         <span>
           <Store size={15} /> Tiendas
         </span>
-        <span className="store-edit-sheet__item-name"> · {item.name}</span>
+        <span className="store-editor__item-name"> · {item.name}</span>
       </div>
 
       {currentStores.length > 0 && (
-        <div className="store-edit-sheet__chips">
+        <div className="store-editor__chips">
           {currentStores.map((store) => (
-            <span key={store} className="store-edit-sheet__chip">
+            <span key={store} className="store-editor__chip">
               {store}
               <button
-                className="store-edit-sheet__chip-remove"
+                className="store-editor__chip-remove"
                 onClick={() => removeStore(store)}
                 aria-label={`Eliminar ${store}`}
               >
@@ -67,9 +66,9 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
         </div>
       )}
 
-      <div className="store-edit-sheet__input-row">
+      <div className="store-editor__input-row">
         <input
-          className="store-edit-sheet__input"
+          className="store-editor__input"
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -79,7 +78,7 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
           aria-label="Nueva tienda"
         />
         <button
-          className="store-edit-sheet__add"
+          className="store-editor__add"
           onClick={() => addStore(input)}
           aria-label="Añadir tienda"
         >
@@ -88,11 +87,11 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
       </div>
 
       {suggestions.length > 0 && (
-        <div className="store-edit-sheet__suggestions">
+        <div className="store-editor__suggestions">
           {suggestions.map((s) => (
             <button
               key={s}
-              className="store-edit-sheet__suggestion"
+              className="store-editor__suggestion"
               onClick={() => addStore(s)}
             >
               {s}
@@ -100,6 +99,6 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
           ))}
         </div>
       )}
-    </Sheet>
+    </div>
   )
 }

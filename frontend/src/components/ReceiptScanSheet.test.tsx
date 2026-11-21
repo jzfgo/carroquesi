@@ -804,6 +804,7 @@ describe('ReceiptScanSheet — resolve sheet (13b)', () => {
           name: 'Cacahuetes',
           brand: 'Frit',
           stores: [],
+          pack: null,
         },
       },
     })

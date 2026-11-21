@@ -6,6 +6,7 @@ import type {
   LabelRead,
   ListItem,
   ListUpdatedAt,
+  PackSource,
   PriceEntry,
   PriceHistoryResponse,
   PurchaseCloseBody,
@@ -297,12 +298,14 @@ export function updateItem(
     brand: string | null
     stores: string[]
     pack: PackFormat | null
+    pack_source: PackSource
+    ean: string | null
   }>,
-) {
+): Promise<ListItem> {
   return apiFetch(getToken, `/lists/${listId}/items/${itemId}`, {
     method: 'PATCH',
     body: JSON.stringify(patch),
-  })
+  }) as Promise<ListItem>
 }
 
 export function deleteItem(

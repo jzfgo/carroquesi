@@ -17,6 +17,8 @@ type S = components['schemas']
 
 // Responses
 export type ListItem = S['ItemRead']
+// Where a line's format came from; only "manual" was typed.
+export type PackSource = NonNullable<ListItem['pack_source']>
 export type ApiList = S['ListRead']
 export type BackendMember = S['MemberRead']
 export type UserMe = Required<S['UserRead']>
@@ -102,8 +104,3 @@ export interface Member {
 }
 
 export type TagField = 'brand' | 'quantity'
-
-export interface EditingTag {
-  itemId: string
-  field: TagField | 'stores'
-}

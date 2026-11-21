@@ -49,6 +49,16 @@
             "title": "Name",
             "type": "string"
           },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "stores": {
             "items": {
               "type": "string"
@@ -578,6 +588,24 @@
               }
             ]
           },
+          "pack_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "manual",
+                  "name",
+                  "receipt",
+                  "off",
+                  "copied"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Source"
+          },
           "price": {
             "anyOf": [
               {
@@ -781,6 +809,24 @@
                 "type": "null"
               }
             ]
+          },
+          "pack_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "manual",
+                  "name",
+                  "receipt",
+                  "off",
+                  "copied"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Source"
           },
           "purchased": {
             "anyOf": [

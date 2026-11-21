@@ -1,5 +1,4 @@
-/* Panel chrome (position, scrim, grabber, slide) comes from the shared Sheet
-   primitive. This file styles only the content. */
+/* A sub-state of the item sheet: the sheet draws the panel. */
 .lps__title {
   font-size: 16px;
   font-weight: 700;

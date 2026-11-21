@@ -133,6 +133,18 @@ def test_caches_the_package_size(client: TestClient, httpx_mock: HTTPXMock, sess
     assert cached.quantity == "6 x 33 cl"
 
 
+def test_sends_the_package_size_as_a_format(client: TestClient, httpx_mock: HTTPXMock):
+    httpx_mock.add_response(url=_OFF_URL_EAN13, json=OFF_MAHOU)
+    data = client.get(f"/barcode/{_EAN13}").json()
+    assert data["pack"] == {"count": 6, "content": 33, "unit": "cl"}
+
+
+def test_a_size_that_is_not_plain_sends_no_format(client: TestClient, session: Session):
+    session.add(BarcodeCache(ean=_EAN13, name="Agua", quantity="500 g (2 x 250 g)"))
+    session.commit()
+    assert client.get(f"/barcode/{_EAN13}").json()["pack"] is None
+
+
 # --- Gaps found by mutation testing ---
 
 

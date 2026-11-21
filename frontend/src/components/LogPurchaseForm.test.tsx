@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
-import LogPurchaseSheet from './LogPurchaseSheet'
+import LogPurchaseForm from './LogPurchaseForm'
 import { ADD_STORE } from './StoreSelect'
 
 const BASE_ITEM: ListItem = {
@@ -27,18 +27,17 @@ const BASE_ITEM: ListItem = {
   updated_at: '',
 }
 
-describe('LogPurchaseSheet quantity and price calculation', () => {
+describe('LogPurchaseForm quantity and price calculation', () => {
   it('calls onSave with updated price, store, and quantity when clicked', async () => {
     const onSave = vi.fn()
     const item = { ...BASE_ITEM }
     render(
-      <LogPurchaseSheet
+      <LogPurchaseForm
         item={item}
         initialAmount={1.5}
         initialStore="Lidl"
         initialPurchasedQuantity="3"
         onSave={onSave}
-        onClose={vi.fn()}
       />,
     )
 
@@ -62,13 +61,12 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
       stores: ['Ahorramas', 'MERCADONA'],
     }
     render(
-      <LogPurchaseSheet
+      <LogPurchaseForm
         item={item}
         initialAmount={null}
         initialStore="Mercadona"
         initialPurchasedQuantity={null}
         onSave={vi.fn()}
-        onClose={vi.fn()}
       />,
     )
     const select = screen.getByLabelText<HTMLSelectElement>('Tienda')
@@ -88,13 +86,12 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
       stores: ['Ahorramás', 'AHORRA MAS', 'Lidl'],
     }
     render(
-      <LogPurchaseSheet
+      <LogPurchaseForm
         item={item}
         initialAmount={null}
         initialStore={null}
         initialPurchasedQuantity={null}
         onSave={vi.fn()}
-        onClose={vi.fn()}
       />,
     )
     expect(
@@ -110,13 +107,12 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
     const onSave = vi.fn()
     const item = { ...BASE_ITEM, stores: ['Ahorramás'] }
     render(
-      <LogPurchaseSheet
+      <LogPurchaseForm
         item={item}
         initialAmount={2}
         initialStore={null}
         initialPurchasedQuantity={null}
         onSave={onSave}
-        onClose={vi.fn()}
       />,
     )
     await userEvent.selectOptions(screen.getByLabelText('Tienda'), ADD_STORE)
@@ -130,13 +126,12 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
 
   it('shows live cost preview when quantity and price are filled', async () => {
     render(
-      <LogPurchaseSheet
+      <LogPurchaseForm
         item={BASE_ITEM}
         initialAmount={2.0}
         initialStore="Lidl"
         initialPurchasedQuantity="500g"
         onSave={vi.fn()}
-        onClose={vi.fn()}
       />,
     )
 

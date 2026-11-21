@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>El catálogo dice otra cosa: tooltip abierto</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cqs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:#1a3fa0}a:hover{color:#2c56c1}</style>
+</helmet>
+<div class="bd" style="height: 760px; position: relative;">
+  <div class="sh" style="flex: 1; display: flex; flex-direction: column;">
+    <div class="grab"></div>
+    <div style="padding: 0 20px 16px; border-bottom: 1px solid #b4bac4;">
+      <h1 class="t" style="font-size: 24px;">Leche semidesnatada</h1>
+      <div class="sub" style="margin-top: 3px;">Hacendado · en Mercadona</div>
+    </div>
+    <div style="padding: 16px 20px 6px;">
+      <span style="display: flex; flex-direction: column; gap: 2px;">
+        <span class="cap">Último precio</span>
+        <span class="new" style="align-self: flex-start; font: 600 28px/1.1 'JetBrains Mono', monospace; color: #15161b; font-variant-numeric: tabular-nums;">0,89 €<span style="font-size: 15px; font-weight: 500; color: #353742;">/L</span></span>
+        <span style="font: 400 12.5px/1.4 'Geist', system-ui, sans-serif; color: #6a6d7a;"><span class="new"><span class="mono">5,34 €/ud</span> · <span class="mono">6 × 1 L</span></span> · Mercadona, 12 nov</span>
+      </span>
+    </div>
+    <div style="padding: 6px 20px 0;">
+      <button class="pf-btn" style="grid-template-columns: 1fr auto; min-height: 48px;">
+        <span style="font: 500 14.5px/1.3 'Geist', system-ui, sans-serif; color: #1a3fa0;">Registrar un precio</span>
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 16px; height: 16px; stroke-width: 2.2; color: #1a3fa0;"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+      </button>
+    </div>
+
+    <div style="padding: 22px 20px 0;">
+      <div class="cap" style="margin-bottom: 4px;">Producto</div>
+      <div class="pf-split">
+      <button class="pf-btn" aria-label="Editar nombre">
+        <span class="pf-l">Nombre</span>
+        <span class="pf-v">Leche semidesnatada</span>
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #94969f;"><path d="m9 18 6-6-6-6"></path></svg>
+      </button>
+        <button class="ib badge new on" aria-label="Nombre en Open Food Facts" aria-expanded="true"><span><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px;"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><path d="M9 18h6"></path><path d="M10 22h4"></path></svg></span></button>
+        <div class="tip new" role="dialog" aria-label="Nombre en Open Food Facts">
+          <span class="tip-arrow" aria-hidden="true"></span>
+          <span class="offer-txt">
+            <span class="tip-name">Leche semidesnatada UHT</span>
+            <span class="tip-src">de Open Food Facts</span>
+          </span>
+          <div class="offer-act">
+            <button class="disc disc-no" aria-label="Ignorar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 15px; height: 15px; stroke-width: 2.4;"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+            <button class="disc disc-yes" aria-label="Usar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 15px; height: 15px; stroke-width: 2.4;"><path d="M20 6 9 17l-5-5"></path></svg></button>
+          </div>
+        </div>
+      </div>
+      <button class="pf-btn" aria-label="Editar marca">
+        <span class="pf-l">Marca</span>
+        <span class="pf-v">Hacendado</span>
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #94969f;"><path d="m9 18 6-6-6-6"></path></svg>
+      </button>
+      <button class="pf-btn" aria-label="Editar cantidad">
+        <span class="pf-l">Cantidad</span>
+        <span class="pf-v">1</span>
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #94969f;"><path d="m9 18 6-6-6-6"></path></svg>
+      </button>
+      <button class="pf-btn" aria-label="Editar formato">
+        <span class="pf-l">Formato</span>
+        <span style="display: flex; align-items: baseline; gap: 8px;"><span class="pf-v mono">6 × 1 L</span><span class="src">de Open Food Facts</span></span>
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #94969f;"><path d="m9 18 6-6-6-6"></path></svg>
+      </button>
+      <button class="pf-btn" aria-label="Editar tiendas">
+        <span class="pf-l">Tiendas</span>
+        <span class="pf-v">Mercadona</span>
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #94969f;"><path d="m9 18 6-6-6-6"></path></svg>
+      </button>
+      <div class="pf-split">
+        <button class="pf-btn" aria-label="Editar el código a mano">
+          <span class="pf-l">Código</span>
+          <span class="pf-v mono">8480000118325</span>
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #94969f;"><path d="m9 18 6-6-6-6"></path></svg>
+        </button>
+        <button class="ib" aria-label="Escanear el código de barras"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px;"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="M8 7v10"></path><path d="M12 7v10"></path><path d="M17 7v10"></path></svg></button>
+      </div>
+    </div>
+    <div style="padding: 20px 20px 0;">
+      <button class="lnk" style="color: #c0392b;">Eliminar producto</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":402,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

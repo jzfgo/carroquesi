@@ -7,6 +7,10 @@ from pydantic import BaseModel, Field, computed_field, model_validator
 # («gramos», «litros») onto these.
 ContentUnit = Literal["g", "kg", "ml", "cl", "dl", "l"]
 
+# Where a line's format came from. A typed one ("manual") is never replaced;
+# the others are guesses. See ADR-019.
+PackSource = Literal["manual", "name", "receipt", "off", "copied"]
+
 
 class PackFormat(BaseModel):
     """A line's pack format: 6 × 1,5 L, 108 g, or a pack of 12.
@@ -60,6 +64,10 @@ class ItemUpdate(BaseModel):
     # Absent = don't touch; null = remove the format. Changing it clears the
     # EAN unless this request sets one: that EAN named the old format.
     pack: PackFormat | None = None
+    # Where the format in this request came from, when it was not typed: a
+    # catalogue value taken from a suggestion, or the value an undo puts
+    # back. Read only with `pack`.
+    pack_source: PackSource | None = None
     ean: str | None = Field(default=None, pattern=r"^[0-9]{8}$|^[0-9]{13}$")
 
 
@@ -80,6 +88,7 @@ class ItemRead(BaseModel):
     # shows on a row.
     price_before: float | None = None
     pack: PackFormat | None = None
+    pack_source: PackSource | None = None
     purchased_at: datetime | None
     # The trip this item was bought on. None while unpurchased.
     purchase_id: str | None = None

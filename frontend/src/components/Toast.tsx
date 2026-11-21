@@ -8,18 +8,20 @@ interface Props {
   message: string
   /** Emphasised tail of the message, e.g. the name of the item just added. */
   strong?: string
+  /** Emphasised head of the message: what happened, before the detail. */
+  lead?: string
   /** Single optional CTA, rendered between the text and the dismiss cross. */
   action?: { label: string; onClick: () => void }
   onDismiss: () => void
 }
 
-export function Toast({ message, strong, action, onDismiss }: Props) {
+export function Toast({ message, strong, lead, action, onDismiss }: Props) {
   const onDismissRef = useRef(onDismiss)
   useEffect(() => {
     onDismissRef.current = onDismiss
   }, [onDismiss])
 
-  const resetKey = strong ? `${message} ${strong}` : message
+  const resetKey = [lead, message, strong].filter(Boolean).join(' ')
   useEffect(() => {
     const timer = setTimeout(() => onDismissRef.current(), AUTO_DISMISS_MS)
     return () => clearTimeout(timer)
@@ -32,6 +34,11 @@ export function Toast({ message, strong, action, onDismiss }: Props) {
       </div>
       <div className="toast__body">
         <div className="toast__text">
+          {lead && (
+            <>
+              <strong>{lead}</strong>{' '}
+            </>
+          )}
           {message}
           {strong && (
             <>

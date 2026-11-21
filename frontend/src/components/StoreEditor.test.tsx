@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
-import { StoreEditSheet } from './StoreEditSheet'
+import { StoreEditor } from './StoreEditor'
 
 const BASE_ITEM: ListItem = {
   id: 'i1',
@@ -29,44 +29,23 @@ const OTHER_ITEMS: ListItem[] = [
   { ...BASE_ITEM, id: 'i3', stores: ['Alcampo'] },
 ]
 
-describe('StoreEditSheet', () => {
+describe('StoreEditor', () => {
   it('renders existing stores as chips', () => {
-    render(
-      <StoreEditSheet
-        item={BASE_ITEM}
-        items={[]}
-        onSave={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    )
+    render(<StoreEditor item={BASE_ITEM} items={[]} onSave={vi.fn()} />)
     expect(screen.getByText('Mercadona')).toBeInTheDocument()
     expect(screen.getByText('Carrefour')).toBeInTheDocument()
   })
 
   it('clicking the remove button on a store removes it and calls onSave', () => {
     const onSave = vi.fn()
-    render(
-      <StoreEditSheet
-        item={BASE_ITEM}
-        items={[]}
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
-    )
+    render(<StoreEditor item={BASE_ITEM} items={[]} onSave={onSave} />)
     fireEvent.click(screen.getByRole('button', { name: /eliminar mercadona/i }))
     expect(onSave).toHaveBeenCalledWith(['Carrefour'])
   })
 
   it('typing a new store and clicking + adds it and calls onSave', () => {
     const onSave = vi.fn()
-    render(
-      <StoreEditSheet
-        item={BASE_ITEM}
-        items={[]}
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
-    )
+    render(<StoreEditor item={BASE_ITEM} items={[]} onSave={onSave} />)
     fireEvent.change(screen.getByRole('textbox'), {
       target: { value: 'Lidl' },
     })
@@ -76,14 +55,7 @@ describe('StoreEditSheet', () => {
 
   it('pressing Enter in the input adds the store', () => {
     const onSave = vi.fn()
-    render(
-      <StoreEditSheet
-        item={BASE_ITEM}
-        items={[]}
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
-    )
+    render(<StoreEditor item={BASE_ITEM} items={[]} onSave={onSave} />)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Dia' } })
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
     expect(onSave).toHaveBeenCalledWith(['Mercadona', 'Carrefour', 'Dia'])
@@ -91,14 +63,7 @@ describe('StoreEditSheet', () => {
 
   it('does not add duplicate stores', () => {
     const onSave = vi.fn()
-    render(
-      <StoreEditSheet
-        item={BASE_ITEM}
-        items={[]}
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
-    )
+    render(<StoreEditor item={BASE_ITEM} items={[]} onSave={onSave} />)
     fireEvent.change(screen.getByRole('textbox'), {
       target: { value: 'Mercadona' },
     })
@@ -108,14 +73,7 @@ describe('StoreEditSheet', () => {
 
   it('does not add a spelling variant of an existing store', () => {
     const onSave = vi.fn()
-    render(
-      <StoreEditSheet
-        item={BASE_ITEM}
-        items={[]}
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
-    )
+    render(<StoreEditor item={BASE_ITEM} items={[]} onSave={onSave} />)
     fireEvent.change(screen.getByRole('textbox'), {
       target: { value: 'MERCADONÁ' },
     })
@@ -125,26 +83,14 @@ describe('StoreEditSheet', () => {
 
   it('does not add empty string', () => {
     const onSave = vi.fn()
-    render(
-      <StoreEditSheet
-        item={BASE_ITEM}
-        items={[]}
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
-    )
+    render(<StoreEditor item={BASE_ITEM} items={[]} onSave={onSave} />)
     fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
     expect(onSave).not.toHaveBeenCalled()
   })
 
   it('shows client-side suggestions from other items', () => {
     render(
-      <StoreEditSheet
-        item={BASE_ITEM}
-        items={OTHER_ITEMS}
-        onSave={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <StoreEditor item={BASE_ITEM} items={OTHER_ITEMS} onSave={vi.fn()} />,
     )
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Li' } })
     expect(screen.getByText('Lidl')).toBeInTheDocument()
@@ -152,44 +98,9 @@ describe('StoreEditSheet', () => {
 
   it('clicking a suggestion adds the store', () => {
     const onSave = vi.fn()
-    render(
-      <StoreEditSheet
-        item={BASE_ITEM}
-        items={OTHER_ITEMS}
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
-    )
+    render(<StoreEditor item={BASE_ITEM} items={OTHER_ITEMS} onSave={onSave} />)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Li' } })
     fireEvent.click(screen.getByText('Lidl'))
     expect(onSave).toHaveBeenCalledWith(['Mercadona', 'Carrefour', 'Lidl'])
-  })
-
-  it('ESC key calls onClose', () => {
-    const onClose = vi.fn()
-    render(
-      <StoreEditSheet
-        item={BASE_ITEM}
-        items={[]}
-        onSave={vi.fn()}
-        onClose={onClose}
-      />,
-    )
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(onClose).toHaveBeenCalled()
-  })
-
-  it('tapping the scrim calls onClose', () => {
-    const onClose = vi.fn()
-    render(
-      <StoreEditSheet
-        item={BASE_ITEM}
-        items={[]}
-        onSave={vi.fn()}
-        onClose={onClose}
-      />,
-    )
-    fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
-    expect(onClose).toHaveBeenCalled()
   })
 })
