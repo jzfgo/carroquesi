@@ -211,6 +211,9 @@ def update_item(
     # would reopen the un-purchase grace window on a closed trip.
     repeat_purchase = purchased is True and was_purchased and not data
     pack_source = data.pop("pack_source", None)
+    # Read before the format: a new format clears the code, and a request
+    # that sends the same code back has not changed it.
+    new_ean = "ean" in data and data["ean"] is not None and data["ean"] != item.ean
     if "pack" in data:
         data.pop("pack")
         # Whole, not exclude_unset: a field left out of the format is a default,
@@ -221,7 +224,6 @@ def update_item(
         # relabelling a typed format as a guess would let a rename replace it.
         if pack_source is not None and item.pack is not None and item.pack != before:
             item.pack_source = pack_source
-    new_ean = "ean" in data and data["ean"] is not None and data["ean"] != item.ean
     for field, value in data.items():
         setattr(item, field, value)
     if new_ean:

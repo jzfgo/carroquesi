@@ -577,6 +577,26 @@ def test_a_catalogue_format_taken_from_a_suggestion_keeps_its_source(client: Tes
     assert taken["ean"] == "8410188011128"
 
 
+def test_taking_a_catalogue_format_wins_over_the_lists_own_line(
+    client: TestClient, session: Session
+):
+    """Sending the code back with the format taken is no new code, so the
+    list's own line must not copy its format over the one just taken."""
+    lst = _list(client)
+    _bought_line(
+        session, lst["id"], "8410188011128", 5, pack_count=1, pack_content=1, pack_content_unit="l"
+    )
+    item = _item(client, lst["id"], name="Agua mineral")
+    _patch(client, lst["id"], item["id"], {"ean": "8410188011128"})
+
+    body = {"pack": SIX_BY_ONE_AND_A_HALF, "pack_source": "off", "ean": "8410188011128"}
+    taken = _patch(client, lst["id"], item["id"], body).json()
+
+    assert taken["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert taken["pack_source"] == "off"
+    assert taken["ean"] == "8410188011128"
+
+
 def test_a_source_without_a_format_changes_nothing(client: TestClient):
     lst = _list(client)
     item = _item(client, lst["id"])
