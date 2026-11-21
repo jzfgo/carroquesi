@@ -22,7 +22,7 @@ import {
   parseQuantityFactor,
   unitPrice,
 } from '../lib/itemCost'
-import { formatPack } from '../lib/packFormat'
+import { formatPack, samePack } from '../lib/packFormat'
 import { formatChartDate, PriceBand } from '../lib/priceChart'
 import { normalizeEntries } from '../lib/priceNormalization'
 import { buildRastroSegments } from '../lib/rastro'
@@ -83,8 +83,8 @@ interface Props {
   onSetStores: (stores: string[]) => void
   /** Saves a format typed by hand; null removes it. */
   onSetPack: (pack: PackFormat | null) => void
-  /** A code and what it fills; answers whether it was saved. */
-  onCorrect: (patch: ItemCorrection) => Promise<boolean>
+  /** A code and what it fills; answers the line as saved, or null. */
+  onCorrect: (patch: ItemCorrection) => Promise<ListItem | null>
   onDelete: () => void
   onClone: () => void
   /**
@@ -346,25 +346,45 @@ function showValue(value: string | PackFormat): string {
   return typeof value === 'string' ? value : formatPack(value)
 }
 
-/** The toast a saved code earns: what Open Food Facts filled, if anything. */
+/** Where the format a saved code filled came from, if it filled one. */
+type FilledPack = 'off' | 'copied' | null
+
+function filledPack(before: ListItem, saved: ListItem): FilledPack {
+  const source = saved.pack_source
+  if (source !== 'off' && source !== 'copied') return null
+  if (!saved.pack) return null
+  if (before.pack && samePack(before.pack, saved.pack)) return null
+  return source
+}
+
+/** The toast a saved code earns: what it filled, and from where. */
 function codeToast(
   known: boolean | null,
   brand: boolean,
-  pack: boolean,
+  pack: FilledPack,
 ): FichaToast {
   const lead = 'Código guardado.'
+  const copied = 'Formato copiado de otra línea de tu lista.'
   if (known === false) {
     return {
       lead,
       message:
-        'Open Food Facts no lo conoce, así que no hay más datos que añadir.',
+        pack === 'copied'
+          ? `Open Food Facts no lo conoce. ${copied}`
+          : 'Open Food Facts no lo conoce, así que no hay más datos que añadir.',
     }
   }
-  if (brand && pack) {
+  if (brand && pack === 'off') {
     return { lead, message: 'Marca y formato añadidos desde Open Food Facts.' }
   }
+  if (brand && pack === 'copied') {
+    return { lead, message: `Marca añadida desde Open Food Facts. ${copied}` }
+  }
   if (brand) return { lead, message: 'Marca añadida desde Open Food Facts.' }
-  if (pack) return { lead, message: 'Formato añadido desde Open Food Facts.' }
+  if (pack === 'off') {
+    return { lead, message: 'Formato añadido desde Open Food Facts.' }
+  }
+  if (pack === 'copied') return { lead, message: copied }
   return { lead, message: '' }
 }
 
@@ -476,14 +496,11 @@ export function ItemFichaSheet({
       known = err instanceof ApiError && err.status === 404 ? false : null
     }
     const brand = product?.brand && !item.brand ? product.brand : null
-    // A format an earlier code guessed gives way to the new code's.
-    const guessedPack =
-      item.pack_source === 'off' || item.pack_source === 'copied'
-    const fillsPack =
-      !!product?.pack && (!item.pack || guessedPack) && hasFormat
     const saved = await onCorrect(brand ? { ean, brand } : { ean })
     if (!saved) return
-    onToast(codeToast(known, !!brand, fillsPack))
+    // The server decides the format: the list's own line first, then Open
+    // Food Facts, and none on a line sold by weight.
+    onToast(codeToast(known, !!brand, filledPack(item, saved)))
     if (!product) return
     const found: Catalogue = {
       ean,
@@ -492,11 +509,7 @@ export function ItemFichaSheet({
       pack: product.pack,
     }
     // The line as the save leaves it: what was filled is no suggestion.
-    const after = {
-      ...item,
-      brand: item.brand ?? brand,
-      pack: fillsPack ? product.pack : (item.pack ?? null),
-    }
+    const after = { ...item, brand: saved.brand, pack: saved.pack ?? null }
     const fields = differingFields(after, found)
     setCatalogue(found)
     setIgnored(new Set())

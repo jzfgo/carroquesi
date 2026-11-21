@@ -520,12 +520,13 @@ export function useListItems(
 
   // A correction from the item sheet's catalogue: a code with what it
   // fills, or a catalogue format taken or put back. The server may fill more
-  // (the format a new code names), so its answer replaces the paint.
+  // (the format a new code names), so its answer replaces the paint and is
+  // returned: null when nothing was saved.
   const correctItem = useCallback(
     async (itemId: string, patch: Parameters<typeof updateItem>[3]) => {
       if (!isOnline()) {
         showToast(OFFLINE_TOAST)
-        return false
+        return null
       }
       const snapshot = itemsRef.current
       const current = snapshot.find((i) => i.id === itemId)
@@ -542,12 +543,12 @@ export function useListItems(
       try {
         const saved = await updateItem(getToken, listId, itemId, patch)
         setItems((prev) => prev.map((i) => (i.id === itemId ? saved : i)))
-        return true
+        return saved
       } catch (err) {
         setItems(snapshot)
         showToast('No se pudo actualizar el producto')
         suspectListGone(err)
-        return false
+        return null
       } finally {
         markWritten(itemId)
       }

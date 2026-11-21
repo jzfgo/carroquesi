@@ -73,13 +73,20 @@ const members = new Map<string, Member>([
 function renderSheet(
   over: Partial<ListItem> = {},
   props: Record<string, unknown> = {},
+  /** What the server fills beyond the patch, such as a format. */
+  filled: Partial<ListItem> = {},
 ) {
   const handlers = {
     onRename: vi.fn(),
     onSetTag: vi.fn(),
     onSetStores: vi.fn(),
     onSetPack: vi.fn(),
-    onCorrect: vi.fn(async () => true),
+    onCorrect: vi.fn(async (patch: object): Promise<ListItem | null> => ({
+      ...item,
+      ...over,
+      ...patch,
+      ...filled,
+    })),
     onToast: vi.fn(),
     onDelete: vi.fn(),
     onClone: vi.fn(),
@@ -467,7 +474,11 @@ const blank = { name: 'Leche semidesnatada', brand: null, ean: null }
 
 test('the Código row types a code by hand and fills only empty fields', async () => {
   vi.mocked(getBarcode).mockResolvedValue(leche)
-  const { onCorrect, onToast } = renderSheet(blank)
+  const { onCorrect, onToast } = renderSheet(
+    blank,
+    {},
+    { pack: leche.pack, pack_source: 'off' },
+  )
 
   fireEvent.click(screen.getByRole('button', { name: /código\s*sin código/i }))
   const input = screen.getByRole('textbox', { name: 'Código' })
@@ -547,18 +558,26 @@ test('another code on the line asks before replacing it', async () => {
 })
 
 test.each([
-  ['off' as const, 'Formato añadido desde Open Food Facts.'],
-  ['manual' as const, ''],
+  [
+    'off' as const,
+    { pack: leche.pack, pack_source: 'off' as const },
+    'Formato añadido desde Open Food Facts.',
+  ],
+  ['manual' as const, {}, ''],
 ])(
-  'a new code replaces a format the old one guessed (source %s)',
-  async (source, message) => {
+  'the toast says what the server did to a format (source %s)',
+  async (source, filled, message) => {
     vi.mocked(getBarcode).mockResolvedValue({ ...leche, brand: null })
-    const { onToast } = renderSheet({
-      ...blank,
-      ean: '8480000118318',
-      pack: { count: 1, content: 1, unit: 'l' },
-      pack_source: source,
-    })
+    const { onToast } = renderSheet(
+      {
+        ...blank,
+        ean: '8480000118318',
+        pack: { count: 1, content: 1, unit: 'l' },
+        pack_source: source,
+      },
+      {},
+      filled,
+    )
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Escanear el código de barras' }),
@@ -574,6 +593,64 @@ test.each([
     )
   },
 )
+
+const SIX_BY_ONE_AND_A_HALF = { count: 6, content: 1.5, unit: 'l' as const }
+
+test.each([
+  [
+    'a format copied from the list',
+    { brand: null },
+    { pack: SIX_BY_ONE_AND_A_HALF, pack_source: 'copied' as const },
+    'Formato copiado de otra línea de tu lista.',
+  ],
+  [
+    'a brand from Open Food Facts and a format from the list',
+    {},
+    { pack: SIX_BY_ONE_AND_A_HALF, pack_source: 'copied' as const },
+    'Marca añadida desde Open Food Facts. Formato copiado de otra línea de tu lista.',
+  ],
+  ['no format on a line sold by weight', { brand: null }, {}, ''],
+])(
+  'the toast says what the save filled: %s',
+  async (_, product, filled, message) => {
+    vi.mocked(getBarcode).mockResolvedValue({ ...leche, ...product })
+    const { onToast } = renderSheet(blank, {}, filled)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Escanear el código de barras' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Leer (mock)' }))
+
+    await waitFor(() =>
+      expect(onToast).toHaveBeenCalledWith({
+        lead: 'Código guardado.',
+        message,
+      }),
+    )
+  },
+)
+
+test('a code Open Food Facts does not know still says the list gave a format', async () => {
+  vi.mocked(getBarcode).mockRejectedValue(new ApiError(404, 'Not found'))
+  const { onToast } = renderSheet(
+    blank,
+    {},
+    { pack: SIX_BY_ONE_AND_A_HALF, pack_source: 'copied' },
+  )
+
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Escanear el código de barras' }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Leer (mock)' }))
+
+  await waitFor(() =>
+    expect(onToast).toHaveBeenCalledWith({
+      lead: 'Código guardado.',
+      message:
+        'Open Food Facts no lo conoce. Formato copiado de otra línea de tu lista.',
+    }),
+  )
+})
 
 async function scanLeche(over: Partial<ListItem>) {
   vi.mocked(getBarcode).mockResolvedValue(leche)

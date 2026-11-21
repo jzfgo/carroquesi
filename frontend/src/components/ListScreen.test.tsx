@@ -194,7 +194,7 @@ const emptyHookResult = {
   updateStores: vi.fn(),
   renameItem: vi.fn(),
   updatePack: vi.fn(),
-  correctItem: vi.fn(async () => true),
+  correctItem: vi.fn(async (): Promise<ListItem | null> => null),
   removeItem: vi.fn(),
   savePrice: vi.fn(),
   retry: vi.fn(),
