@@ -464,16 +464,22 @@ export function ItemFichaSheet({
     }
   }, [getToken, listId, item.id])
 
-  // A tap outside an open tooltip folds it into its bulb.
+  // A tap outside an open tip only folds it: the click stops here, so the
+  // row beneath never opens its editor. A drag fires no click, so the sheet
+  // still scrolls. A layer over the sheet would catch the drag too. Keyboard
+  // clicks (detail 0) pass, so focus can still reach every control.
   useEffect(() => {
     if (!openTip) return
-    function onPointerDown(e: PointerEvent) {
+    function onClick(e: MouseEvent) {
+      if (e.detail === 0) return
       const target = e.target as Element | null
-      if (target?.closest('.ficha__tip, .ficha__badge')) return
+      if (target?.closest('.ficha__tip, .ficha__badge--on')) return
+      e.stopPropagation()
+      e.preventDefault()
       setOpenTip(null)
     }
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
+    document.addEventListener('click', onClick, true)
+    return () => document.removeEventListener('click', onClick, true)
   }, [openTip])
 
   function go(next: SubState) {
@@ -559,6 +565,9 @@ export function ItemFichaSheet({
       [field]: { before, source: item.pack_source ?? null },
     }))
     write(field, value, 'off')
+    // Left open, the tip would turn into the undo under the same finger, and
+    // a second tap on ✓ would put the old value back.
+    setOpenTip(null)
   }
 
   function restore(field: CatalogueField) {
