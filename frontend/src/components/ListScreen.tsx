@@ -1242,6 +1242,12 @@ export function ListScreen({
           // price entry at all.
           const isRecord =
             activeItem.purchased && !isTripOpen(activeItem.purchase_ends_at)
+          // A bought line is painted from the stack, a read of its own: an
+          // edit here reaches the list only once the stack reads again.
+          const refreshLine = <T,>(write: Promise<T>): Promise<T> =>
+            activeItem.purchased
+              ? write.finally(() => void stackRef.current?.refetch())
+              : write
           return (
             <ItemFichaSheet
               item={activeItem}
@@ -1252,14 +1258,20 @@ export function ListScreen({
               listItems={items}
               purchased={activeItem.purchased}
               onRename={(name, brand) =>
-                void renameItem(activeItemId, name, brand)
+                void refreshLine(renameItem(activeItemId, name, brand))
               }
               onSetTag={(field, value) =>
-                void updateTag(activeItemId, field, value)
+                void refreshLine(updateTag(activeItemId, field, value))
               }
-              onSetStores={(stores) => void updateStores(activeItemId, stores)}
-              onSetPack={(pack) => void updatePack(activeItemId, pack)}
-              onCorrect={(patch) => correctItem(activeItemId, patch)}
+              onSetStores={(stores) =>
+                void refreshLine(updateStores(activeItemId, stores))
+              }
+              onSetPack={(pack) =>
+                void refreshLine(updatePack(activeItemId, pack))
+              }
+              onCorrect={(patch) =>
+                refreshLine(correctItem(activeItemId, patch))
+              }
               onSavePrice={
                 isRecord
                   ? (amount, pricePer, store, qty) =>
@@ -1274,7 +1286,7 @@ export function ListScreen({
               }
               onToast={(t) => setToastState(t)}
               onDelete={() => {
-                void removeItem(activeItemId)
+                void refreshLine(removeItem(activeItemId))
                 setActiveItemId(null)
               }}
               onClone={() => {
