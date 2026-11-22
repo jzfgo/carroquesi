@@ -710,13 +710,27 @@ test('a taken suggestion folds its tip, leaving only the undo', async () => {
 test('a tap outside an open tip folds it and opens nothing beneath', async () => {
   await scanLeche({ name: 'Leche' })
   await screen.findByRole('group', { name: 'Nombre en Open Food Facts' })
-  fireEvent.click(screen.getByTestId('tip-catcher'))
+  // A pointer click carries a click count; a keyboard one carries 0.
+  fireEvent.click(screen.getByRole('button', { name: /cantidad/i }), {
+    detail: 1,
+  })
   expect(
     screen.queryByRole('group', { name: 'Nombre en Open Food Facts' }),
   ).toBeNull()
   // Still the main view: no editor slid in.
   expect(screen.queryByRole('textbox')).toBeNull()
-  expect(screen.queryByTestId('tip-catcher')).toBeNull()
+  // Folded, the tip no longer holds the next tap back.
+  fireEvent.click(screen.getByRole('button', { name: /cantidad/i }), {
+    detail: 1,
+  })
+  expect(screen.getByRole('textbox', { name: 'Cantidad' })).toBeInTheDocument()
+})
+
+test('a keyboard press outside an open tip still reaches its control', async () => {
+  await scanLeche({ name: 'Leche' })
+  await screen.findByRole('group', { name: 'Nombre en Open Food Facts' })
+  fireEvent.click(screen.getByRole('button', { name: /cantidad/i }))
+  expect(screen.getByRole('textbox', { name: 'Cantidad' })).toBeInTheDocument()
 })
 
 test('an ignored suggestion leaves the sheet', async () => {

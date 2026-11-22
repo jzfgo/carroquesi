@@ -267,50 +267,97 @@ function makeItem(overrides: Partial<ListItem>): ListItem {
   }
 }
 
+// A closed trip holding one bought line, as the stack reads it.
+function boughtInStack(): ListItem {
+  const bought = makeItem({
+    id: 'b1',
+    name: 'Leche',
+    purchased: true,
+    purchased_at: '2026-07-21T09:00:00',
+    purchase_ends_at: '2026-07-21T20:00:00',
+    price: 1,
+  })
+  vi.mocked(api.getPurchases).mockResolvedValue({
+    purchases: [
+      {
+        id: 'p1',
+        list_id: 'list1',
+        opened_at: '2026-07-21T09:00:00',
+        tears_off_at: '2026-07-22T00:00:00',
+        closed_at: '2026-07-21T20:00:00',
+        store: 'Mercadona',
+        total: 1,
+        line_count: 1,
+        has_receipt: false,
+        items_total: null,
+        items: [bought],
+      },
+    ],
+    total: 1,
+  })
+  return bought
+}
+
+async function renameInFicha(from: string, to: string) {
+  fireEvent.click(await screen.findByText(from))
+  fireEvent.click(await screen.findByRole('button', { name: /^Nombre/ }))
+  const input = screen.getByDisplayValue(from)
+  fireEvent.change(input, { target: { value: to } })
+  fireEvent.keyDown(input, { key: 'Enter' })
+}
+
 describe('ListScreen', () => {
   it('reads the stack again once a ficha edit on a bought line lands', async () => {
-    const bought = makeItem({
-      id: 'b1',
-      name: 'Leche',
-      purchased: true,
-      purchased_at: '2026-07-21T09:00:00',
-      purchase_ends_at: '2026-07-21T20:00:00',
-      price: 1,
-    })
+    const bought = boughtInStack()
     const renameItem = vi.fn(async () => {})
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
       items: [bought],
       renameItem,
     })
-    vi.mocked(api.getPurchases).mockResolvedValue({
-      purchases: [
-        {
-          id: 'p1',
-          list_id: 'list1',
-          opened_at: '2026-07-21T09:00:00',
-          tears_off_at: '2026-07-22T00:00:00',
-          closed_at: '2026-07-21T20:00:00',
-          store: 'Mercadona',
-          total: 1,
-          line_count: 1,
-          has_receipt: false,
-          items_total: null,
-          items: [bought],
-        },
-      ],
-      total: 1,
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+
+    await renameInFicha('Leche', 'Leche entera')
+
+    expect(renameItem).toHaveBeenCalledWith('b1', 'Leche entera', undefined)
+    await waitFor(() => expect(api.getPurchases).toHaveBeenCalledTimes(2))
+  })
+
+  it('reads the stack again once a bought line is deleted', async () => {
+    const bought = boughtInStack()
+    const removeItem = vi.fn(async () => {})
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [bought],
+      removeItem,
     })
     render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
 
     fireEvent.click(await screen.findByText('Leche'))
-    fireEvent.click(await screen.findByRole('button', { name: /^Nombre/ }))
-    const input = screen.getByDisplayValue('Leche')
-    fireEvent.change(input, { target: { value: 'Leche entera' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Eliminar producto' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, eliminar' }))
 
-    expect(renameItem).toHaveBeenCalledWith('b1', 'Leche entera', undefined)
+    expect(removeItem).toHaveBeenCalledWith('b1')
     await waitFor(() => expect(api.getPurchases).toHaveBeenCalledTimes(2))
+  })
+
+  it('leaves the stack alone after a ficha edit on a pending line', async () => {
+    const renameItem = vi.fn(async () => {})
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Pan' })],
+      renameItem,
+    })
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    await waitFor(() => expect(api.getPurchases).toHaveBeenCalledTimes(1))
+
+    await renameInFicha('Pan', 'Pan integral')
+    expect(renameItem).toHaveBeenCalledWith('i1', 'Pan integral', undefined)
+    // Let the write settle, so a re-read it set off would have started.
+    await act(async () => {})
+    expect(api.getPurchases).toHaveBeenCalledTimes(1)
   })
 
   it('renders the list name in the header', () => {

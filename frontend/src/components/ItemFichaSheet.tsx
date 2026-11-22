@@ -464,6 +464,24 @@ export function ItemFichaSheet({
     }
   }, [getToken, listId, item.id])
 
+  // A tap outside an open tip only folds it: the click stops here, so the
+  // row beneath never opens its editor. A drag fires no click, so the sheet
+  // still scrolls. A layer over the sheet would catch the drag too. Keyboard
+  // clicks (detail 0) pass, so focus can still reach every control.
+  useEffect(() => {
+    if (!openTip) return
+    function onClick(e: MouseEvent) {
+      if (e.detail === 0) return
+      const target = e.target as Element | null
+      if (target?.closest('.ficha__tip, .ficha__badge--on')) return
+      e.stopPropagation()
+      e.preventDefault()
+      setOpenTip(null)
+    }
+    document.addEventListener('click', onClick, true)
+    return () => document.removeEventListener('click', onClick, true)
+  }, [openTip])
+
   function go(next: SubState) {
     setBack(next === 'main')
     setSubState(next)
@@ -613,62 +631,48 @@ export function ItemFichaSheet({
       </button>
     )
     const tip = open && (
-      <>
-        {/* A tap outside the tip only folds it: the layer takes the tap, so
-            the row beneath never opens its editor. */}
-        <div
-          className="ficha__tip-catcher"
-          data-testid="tip-catcher"
-          aria-hidden
-          onClick={() => setOpenTip(null)}
-        />
-        <div
-          className="ficha__tip"
-          role="group"
-          aria-label={
-            showsUndo ? `${label} anterior` : `${label} en Open Food Facts`
-          }
-        >
-          <span className="ficha__tip-arrow" aria-hidden />
-          <span className="ficha__tip-text">
-            {showsUndo && was ? (
-              <>
-                <span className="ficha__tip-src">Antes</span>
-                <span className="ficha__tip-value">
-                  {showValue(was.before)}
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="ficha__tip-value">
-                  {value != null ? showValue(value) : ''}
-                </span>
-                <span className="ficha__tip-src">{FROM_OFF}</span>
-              </>
-            )}
-          </span>
-          <span className="ficha__tip-actions">
-            <button
-              type="button"
-              className="ficha__disc ficha__disc--no"
-              aria-label={showsUndo ? 'Dejar el nuevo' : 'Ignorar'}
-              onClick={() => (showsUndo ? keepNew(field) : ignore(field))}
-            >
-              <X size={15} strokeWidth={2.4} aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="ficha__disc ficha__disc--yes"
-              aria-label={showsUndo ? 'Restaurar' : 'Usar'}
-              onClick={() =>
-                showsUndo ? restore(field) : takeSuggestion(field)
-              }
-            >
-              <Check size={15} strokeWidth={2.4} aria-hidden />
-            </button>
-          </span>
-        </div>
-      </>
+      <div
+        className="ficha__tip"
+        role="group"
+        aria-label={
+          showsUndo ? `${label} anterior` : `${label} en Open Food Facts`
+        }
+      >
+        <span className="ficha__tip-arrow" aria-hidden />
+        <span className="ficha__tip-text">
+          {showsUndo && was ? (
+            <>
+              <span className="ficha__tip-src">Antes</span>
+              <span className="ficha__tip-value">{showValue(was.before)}</span>
+            </>
+          ) : (
+            <>
+              <span className="ficha__tip-value">
+                {value != null ? showValue(value) : ''}
+              </span>
+              <span className="ficha__tip-src">{FROM_OFF}</span>
+            </>
+          )}
+        </span>
+        <span className="ficha__tip-actions">
+          <button
+            type="button"
+            className="ficha__disc ficha__disc--no"
+            aria-label={showsUndo ? 'Dejar el nuevo' : 'Ignorar'}
+            onClick={() => (showsUndo ? keepNew(field) : ignore(field))}
+          >
+            <X size={15} strokeWidth={2.4} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="ficha__disc ficha__disc--yes"
+            aria-label={showsUndo ? 'Restaurar' : 'Usar'}
+            onClick={() => (showsUndo ? restore(field) : takeSuggestion(field))}
+          >
+            <Check size={15} strokeWidth={2.4} aria-hidden />
+          </button>
+        </span>
+      </div>
     )
     return { action, tip }
   }
