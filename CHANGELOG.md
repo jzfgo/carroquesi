@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.29.2] — 2026-11-22
+
+### Fixed
+- **frontend:** Steady the ficha's catalogue tips and refresh bought lines (#539)
+
+
+---
 ## [0.29.1] — 2026-11-21
 
 ### Fixed
