@@ -1,5 +1,5 @@
 ---
-name: ship
+name: open-pr
 description: Commit, push, and open a squash-merge PR
 ---
 1. Run `just ci` (format-check + typecheck + lint + frontend and backend tests + tooling tests); fix any failures before continuing
