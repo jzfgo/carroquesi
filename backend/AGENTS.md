@@ -11,7 +11,7 @@
 
 ## Mutation Testing (mutmut)
 
-Run with `just backend mutation` (or scope to a module with `just backend mutation "app.routers.purchases.*"`). Configured under `[tool.mutmut]` in `backend/pyproject.toml`. The recipe ignores `test_store_key.py`, `test_e2e_contract.py`, and `test_quantity.py` because `mutmut` copies `backend/` into `mutants/` and cross-tree `../frontend/...` relative paths do not resolve there. Equivalent or deliberate best-effort survivors do not block; `/ship` runs it scoped to changed `app/services/**` and `app/routers/**` modules.
+Run with `just backend mutation` (or scope to a module with `just backend mutation "app.routers.purchases.*"`). Configured under `[tool.mutmut]` in `backend/pyproject.toml`. The recipe ignores `test_store_key.py`, `test_e2e_contract.py`, and `test_quantity.py` because `mutmut` copies `backend/` into `mutants/` and cross-tree `../frontend/...` relative paths do not resolve there. Equivalent or deliberate best-effort survivors do not block; `/open-pr` runs it scoped to changed `app/services/**` and `app/routers/**` modules.
 
 mutmut does not mutate decorated functions. Only `@staticmethod` and `@classmethod` are exempt, and no setting changes this. This is why routes are registered without a decorator (see Key conventions). The same limit applies in `app/services/`: a function under `@lru_cache` or a `@property` gets no mutants.
 
