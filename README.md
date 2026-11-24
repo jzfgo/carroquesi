@@ -91,7 +91,7 @@ just backend migrate
 
 ### 5. Seed test data (optional)
 
-Populate the local database with realistic test data (3 users, 4 lists, 128 items with price history across 6 stores):
+Populate the local database with realistic test data (3 users, 4 lists, 128 items with price history across 6 stores). Seeding needs the SQLite `DATABASE_URL` from step 3: the script refuses any Postgres URL, local ones included, so it can never write fake accounts into staging or production.
 
 ```bash
 just backend seed

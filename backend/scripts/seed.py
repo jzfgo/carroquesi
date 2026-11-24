@@ -6,7 +6,7 @@ Run from the backend directory:
     uv run python scripts/seed.py
 
 Idempotent: deletes all rows whose PK starts with "seed-" before reinserting.
-Real user accounts are never touched.
+Real user accounts are never touched. Refuses any non-SQLite DATABASE_URL.
 
 Test users (no real Firebase project needed):
     Alice  firebase_uid=seed-alice   (owner of Compra semanal + Fiesta de cumple)
@@ -1854,12 +1854,15 @@ def main() -> None:
     stores = {i.price_store for i in price_items if i.price_store}
 
     database_url = get_settings().database_url
-    # The dev loop runs on SQLite; any other database is a shared one with
-    # real users, where fake accounts must never appear.
+    # Seeding is for the SQLite dev loop only. A Postgres URL may point at
+    # staging or production, where fake accounts must never appear.
     url = make_url(database_url)
     if url.get_backend_name() != "sqlite":
         shown = url.render_as_string(hide_password=True)
-        sys.exit(f"Refusing to seed a non-SQLite database: {shown}")
+        sys.exit(
+            f"Refusing to seed a non-SQLite database: {shown}\n"
+            "Seed a local SQLite database: DATABASE_URL=sqlite:///./carroquesi.db"
+        )
 
     print(f"\nSeeding: {database_url}\n")
     with Session(get_engine()) as session:
