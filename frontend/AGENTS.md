@@ -18,7 +18,7 @@ Visual-regression baselines and how to regenerate them are in the root `AGENTS.m
 
 ## Mutation Testing (StrykerJS)
 
-Run with `just frontend mutation` (or scope to specific files with `-m src/lib/foo.ts,src/hooks/bar.ts`, or `--incremental`). Config: `frontend/stryker.config.json`. Equivalent or deliberate best-effort survivors do not block; `/ship` runs it scoped to changed `src/lib/**` and `src/hooks/**` files.
+Run with `just frontend mutation` (or scope to specific files with `-m src/lib/foo.ts,src/hooks/bar.ts`, or `--incremental`). Config: `frontend/stryker.config.json`. Equivalent or deliberate best-effort survivors do not block; `/open-pr` runs it scoped to changed `src/lib/**` and `src/hooks/**` files.
 
 ## Key conventions
 
