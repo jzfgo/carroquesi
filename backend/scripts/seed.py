@@ -51,6 +51,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from sqlalchemy.engine import make_url
 from sqlmodel import Session, select
 
 from app.core.config import get_settings
@@ -1852,7 +1853,15 @@ def main() -> None:
     price_items = [i for i in SEED_ITEMS if i.price is not None]
     stores = {i.price_store for i in price_items if i.price_store}
 
-    print(f"\nSeeding: {get_settings().database_url}\n")
+    database_url = get_settings().database_url
+    # The dev loop runs on SQLite; any other database is a shared one with
+    # real users, where fake accounts must never appear.
+    url = make_url(database_url)
+    if url.get_backend_name() != "sqlite":
+        shown = url.render_as_string(hide_password=True)
+        sys.exit(f"Refusing to seed a non-SQLite database: {shown}")
+
+    print(f"\nSeeding: {database_url}\n")
     with Session(get_engine()) as session:
         _delete_seed_rows(session)
         _insert(session, SEED_USERS)
