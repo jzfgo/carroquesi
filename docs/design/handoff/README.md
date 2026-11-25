@@ -58,6 +58,9 @@ Committed as static files, verbatim from the export, except:
   kept).
 - `design_handoff_carroquesi_ui/` (an older, superseded export of the same
   project) and `uploads/` (unreferenced sketches) were not committed.
+- Frame 20a's note gained one sentence after approval (2026-11-25): a
+  scanned own brand comes in with its chain, since the right store matters
+  more than landing at the tail of «Sin tienda».
 
 The frames are prototypes, not production code: read the HTML/CSS as spec and
 match the visual output. Viewing them in a browser needs network access
