@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.29.3] — 2026-11-25
+
+### Fixed
+- **frontend:** Give a scanned own brand its chain (#549)
+
+
+---
 ## [0.29.2] — 2026-11-22
 
 ### Fixed
