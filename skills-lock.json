@@ -5,13 +5,15 @@
       "source": "fastapi/fastapi",
       "sourceType": "github",
       "skillPath": "fastapi/.agents/skills/fastapi/SKILL.md",
-      "computedHash": "141f0146e357365d518029ccc74e5b0a256f9a352573c65856780995d1bea52c"
+      "computedHash": "141f0146e357365d518029ccc74e5b0a256f9a352573c65856780995d1bea52c",
+      "commit": "05e6df7e906c3decba377c37548019973f40bf15"
     },
     "worktrunk": {
       "source": "max-sixty/worktrunk",
       "sourceType": "github",
       "skillPath": "skills/worktrunk/SKILL.md",
-      "computedHash": "e5f438f6db2c3379d0ea154068d05a59353ea855b7a1795d6295302b58339a8e"
+      "computedHash": "085de994effe8c59a138d0d713a163c1e771852361c545fcb327ea302239a1d0",
+      "commit": "40a846a504158f473408b51293fb8665627c149c"
     }
   }
 }
