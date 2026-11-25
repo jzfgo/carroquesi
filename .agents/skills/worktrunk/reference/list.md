@@ -171,7 +171,7 @@ The single highest-priority state describing the branch's relation to the defaul
 
 | Symbol | display.state | Meaning |
 |--------|---------------|---------|
-| `^` | `"is_main"` | The main worktree (the repo's home worktree) |
+| `^` | `"is_main"` | The primary worktree (the repo's home worktree) |
 | `∅` | `"orphan"` | No common ancestor with the default branch |
 | `_` | `"empty"` | Same commit as the default branch, working tree clean — safe to remove; row dimmed |
 | `⊂` | `"integrated"` | Content [integrated](https://worktrunk.dev/remove/#branch-cleanup) into the default branch or merge target via different history; the matching check is in `default_branch.integration.reason`; row dimmed |
@@ -235,9 +235,9 @@ One envelope object. Items carry independent facts; rendered strings
       "branch": "feature",
       "head": {"sha": "05a4a45d…", "short_sha": "05a4a45", "subject": "Add login page",
                "committed_at": "2025-01-01T08:00:00Z"},
-      "worktree": {"path": "/home/user/repo.feature", "main": false, "current": true,
-                   "previous": false, "detached": false, "branch_mismatch": false,
-                   "duplicate_branch": false,
+      "worktree": {"path": "/home/user/repo.feature", "modified_at": "2025-01-01T09:30:00Z",
+                   "main": false, "current": true, "previous": false, "detached": false,
+                   "branch_mismatch": false, "duplicate_branch": false,
                    "changes": {"staged": false, "modified": true, "untracked": false,
                                "renamed": false, "deleted": false, "conflicted": false,
                                "diff": {"added": 10, "deleted": 2}}},
@@ -306,7 +306,7 @@ Present only on worktree rows. The location attributes are independent, so they 
 |-------|------|-------------|
 | `path` | string | Worktree path |
 | `modified_at` | string/null | Later of HEAD committer time and the newest changed or untracked file mtime, RFC 3339 UTC; null when unresolved |
-| `main` | boolean | Is the main worktree |
+| `main` | boolean | Is the primary worktree: the main worktree, or in a bare repo the one on the default branch |
 | `current` | boolean | Is the worktree the command ran from |
 | `previous` | boolean | Is the previous worktree (`wt switch -`) |
 | `detached` | boolean | HEAD is detached |
@@ -542,9 +542,7 @@ Global Options:
           Override config with inline TOML, e.g. --config-set list.full=true (repeatable)
 
   -v, --verbose...
-          Verbose output (-v: info logs + hook/alias template variables on stderr; -vv: also debug
-          logs and raw subprocess output written to .git/wt/logs/). Set WORKTRUNK_VERBOSE=0|1|2 to
-          apply the same level everywhere — including shell completion, which no flag can reach
+          Verbose output (-v: template variables; -vv: debug logs)
 
   -y, --yes
           Skip approval prompts
