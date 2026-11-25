@@ -633,7 +633,7 @@ describe('ListScreen', () => {
     vi.mocked(api.getBarcode).mockResolvedValueOnce({
       ean: '8412345678901',
       name: 'Tomates',
-      brand: 'Carrefour',
+      brand: 'Orlando',
       stores: ['Carrefour'],
       pack: null,
     })
@@ -651,7 +651,7 @@ describe('ListScreen', () => {
     await waitFor(() => {
       expect(addItemMock).toHaveBeenCalledWith({
         name: 'Tomates',
-        brand: 'Carrefour',
+        brand: 'Orlando',
         stores: [],
         quantity: null,
         ean: '8412345678901',
@@ -737,6 +737,40 @@ describe('ListScreen', () => {
     })
   })
 
+  it('a looked-up own brand carries its store through the search add', async () => {
+    const addItemMock = vi.fn(async () => null)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
+    })
+
+    vi.mocked(api.getBarcode).mockResolvedValueOnce({
+      ean: '8480000123456',
+      name: 'Estropajo fregasuelos',
+      brand: 'Bosque Verde',
+      stores: [],
+      pack: null,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.change(
+      screen.getByRole('textbox', { name: /añadir producto/i }),
+      { target: { value: '|8480000123456' } },
+    )
+    fireEvent.click(screen.getByRole('button', { name: /buscar producto/i }))
+
+    await waitFor(() => {
+      expect(addItemMock).toHaveBeenCalledWith({
+        name: 'Estropajo fregasuelos',
+        brand: 'Bosque Verde',
+        stores: ['Mercadona'],
+        quantity: null,
+        ean: '8480000123456',
+      })
+    })
+  })
+
   it('a camera read adds the product, closes the scanner, and Ajustar opens the ficha', async () => {
     const created = makeItem({
       id: 'i-scan',
@@ -761,7 +795,8 @@ describe('ListScreen', () => {
       expect(addItemMock).toHaveBeenCalledWith({
         name: 'Cacahuetes dulces',
         brand: 'Hacendado',
-        stores: [],
+        // An own brand is only sold at its chain.
+        stores: ['Mercadona'],
         quantity: null,
         ean: '8412345678901',
       })
