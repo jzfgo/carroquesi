@@ -831,9 +831,11 @@ export function ListScreen({
   }, [])
 
   // A found product goes straight onto the list (20a) — no confirmation
-  // sheet. Storeless on purpose, so it lands in «Sin tienda» at the tail,
-  // where its position says it is new. The toast's one CTA opens the ficha;
-  // undo lives there, so a second action would be the same door twice.
+  // sheet. The lookup's own store list is ignored, so it usually lands in
+  // «Sin tienda» at the tail, where its position says it is new. An own
+  // brand still brings its chain, as on every path that sets a brand. The
+  // toast's one CTA opens the ficha; undo lives there, so a second action
+  // would be the same door twice.
   const addScanned = useCallback(
     async (input: ParsedInput) => {
       const created = await addItem(input)
@@ -864,7 +866,7 @@ export function ListScreen({
       void addScanned({
         name: product.name,
         brand: product.brand,
-        stores: [],
+        stores: withOwnBrandStore(product.brand, []),
         quantity: null,
         ean: product.ean,
       })
@@ -961,10 +963,14 @@ export function ListScreen({
         setInputValue('')
         // Sigils typed next to the code are the user's word over the lookup's.
         // A typed own brand carries its inferred store here too, the same as
-        // a plain save.
-        const stores = storeToAdd
-          ? [...new Set([...parsed.stores, storeToAdd])]
-          : parsed.stores
+        // a plain save, unless its chip was dismissed. With no typed brand,
+        // the looked-up one brings its store.
+        let stores = parsed.stores
+        if (parsed.brand) {
+          if (storeToAdd) stores = [...new Set([...stores, storeToAdd])]
+        } else {
+          stores = withOwnBrandStore(product.brand, stores)
+        }
         void addScanned({
           name: product.name,
           brand: parsed.brand ?? product.brand,
